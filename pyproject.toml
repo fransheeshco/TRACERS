@@ -10,9 +10,9 @@ requires-python = ">=3.11"
 dependencies = [
     "imageio-ffmpeg>=0.6",
     "numpy>=2.1",
-    "scipy>=1.14",
     "soundfile>=0.13",
     "torch>=2.15",
+    "torchaudio>=2.11.1",
 ]
 
 [project.optional-dependencies]

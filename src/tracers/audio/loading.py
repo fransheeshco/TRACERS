@@ -1,29 +1,26 @@
-"""Audio decoding, mono conversion, and resampling."""
+"""Audio loading, mono conversion, and AutoOsu-compatible resampling."""
 
 from pathlib import Path
 import subprocess
 
 from imageio_ffmpeg import get_ffmpeg_exe
 import numpy as np
-from scipy.signal import resample_poly
 import soundfile as sf
+import torch
+import torchaudio
 
 
 def load_audio(path: str | Path, target_sample_rate: int = 44_100) -> np.ndarray:
-    """Load an audio file, mix it to mono, and resample it."""
+    """Decode normalized float audio, mix to mono, and resample with Torchaudio."""
 
     path = Path(path).expanduser()
     if not path.is_file():
-        raise FileNotFoundError(
-            f"Audio file not found: {path}. Replace the example path with the "
-            "actual path to your WAV, MP3, FLAC, OGG, or M4A file."
-        )
+        raise FileNotFoundError(f"Audio file not found: {path}")
 
     try:
         audio, source_sample_rate = sf.read(path, always_2d=True, dtype="float32")
+        mono = torch.from_numpy(audio).mean(dim=1)
     except sf.LibsndfileError:
-        # libsndfile does not decode common AAC/M4A files. The bundled FFmpeg
-        # fallback emits mono float32 PCM at the target sample rate.
         command = [
             get_ffmpeg_exe(),
             "-v",
@@ -54,22 +51,13 @@ def load_audio(path: str | Path, target_sample_rate: int = 44_100) -> np.ndarray
                 else str(error)
             )
             raise ValueError(f"Could not decode audio file {path}: {detail}") from error
-
-        mono = np.frombuffer(decoded.stdout, dtype="<f4").copy()
+        mono = torch.from_numpy(np.frombuffer(decoded.stdout, dtype="<f4").copy())
         source_sample_rate = target_sample_rate
-        audio = mono[:, None]
 
-    mono = audio.mean(axis=1, dtype=np.float32)
     if source_sample_rate != target_sample_rate:
-        divisor = int(np.gcd(source_sample_rate, target_sample_rate))
-        mono = resample_poly(
-            mono,
-            target_sample_rate // divisor,
-            source_sample_rate // divisor,
-        ).astype(np.float32, copy=False)
-
-    if mono.size == 0:
+        mono = torchaudio.functional.resample(mono, source_sample_rate, target_sample_rate)
+    if mono.numel() == 0:
         raise ValueError(f"Audio file is empty: {path}")
-    if not np.all(np.isfinite(mono)):
+    if not mono.isfinite().all():
         raise ValueError(f"Audio contains non-finite samples: {path}")
-    return mono
+    return mono.numpy()

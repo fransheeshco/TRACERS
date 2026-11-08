@@ -26,8 +26,8 @@ Audio + BPM/offset
 Audio preprocessing
         |
         +-- specs       (3, T, 80) torch.float32
-        +-- beat_phase  (T,)       torch.float32
-        +-- beat_num    (T,)       torch.int64
+        +-- beat_phase  (T,)       torch.int32
+        +-- beat_num    (T,)       torch.int32
         |
         v
 PyTorch Transformer (next stage)
@@ -57,8 +57,8 @@ data/                Local datasets and generated files (ignored by Git)
 - Python 3.11 or newer
 - macOS, Linux, or Windows
 
-The project uses PyTorch, NumPy, SciPy, SoundFile, and a bundled FFmpeg binary
-for formats such as M4A/AAC.
+The project uses PyTorch, Torchaudio, and NumPy. Spectrogram extraction and
+resampling follow the original AutoOsu converter's Torchaudio implementation.
 
 ## Setup
 
@@ -96,7 +96,7 @@ python -m pip install -e ".[test]"
 ## Preprocess audio
 
 The preprocessor needs an audio file and timing information. Timing can come
-from the BPM events in a Bestdori chart:
+from a Bestdori chart containing exactly one BPM event:
 
 ```bash
 preprocess-audio \
@@ -114,9 +114,9 @@ preprocess-audio \
   --offset-seconds 0
 ```
 
-`offset-seconds` is the position in the audio at which beat 0 occurs. The
-current preprocessor does not estimate BPM or offset automatically; use chart
-timing or verified song metadata.
+`offset-seconds` is the position in the audio at which beat 0 occurs. Like the
+original AutoOsu converter, this conversion accepts one constant BPM and does
+not estimate BPM or offset automatically.
 
 The output filename is created automatically from the original audio filename.
 For example, processing `My Original Song.m4a` produces:
@@ -165,12 +165,13 @@ beat_phase = beat_phase.unsqueeze(0)  # (1, T)
 beat_num = beat_num.unsqueeze(0)      # (1, T)
 ```
 
-The `.pt` file also contains `frame_times` and extraction metadata. A `.npz`
-output filename can be used when NumPy compatibility is required.
+The `.pt` dictionary contains exactly `specs`, `beat_phase`, and `beat_num`,
+matching the original AutoOsu audio tensor format. A `.npz` output filename
+can still be used when NumPy compatibility is required.
 
 ### Inspect a tensor file
 
-Use the inspector to view tensor shapes, dtypes, and preprocessing metadata:
+Use the inspector to view tensor shapes and dtypes:
 
 ```bash
 inspect-tensors "data/processed/My Original Song.pt"
@@ -182,7 +183,7 @@ are finite. It reports an actionable error when the file is missing or invalid.
 
 ## Preprocessing representation
 
-The audio representation follows the three-resolution front end used by DDC:
+The audio representation follows the original AutoOsu converter:
 
 | Setting | Value |
 |---|---:|
@@ -191,12 +192,13 @@ The audio representation follows the three-resolution front end used by DDC:
 | Frame rate | 100 frames/second |
 | FFT sizes | 1024, 2048, 4096 |
 | Mel bands | 80 |
-| Frequency range | 27.5 Hz to 16,000 Hz |
-| Spectral value | Natural-log Mel magnitude |
+| Frequency range | 0 Hz to 11,000 Hz |
+| Spectral value | Natural-log Mel power |
+| Window/padding | Torchaudio defaults (Hann/reflect) |
 
 The three FFT sizes show the model short transients and longer musical context
-on the same 100 Hz timeline. `beat_phase` describes progress through the
-current beat in `[0, 1)`. `beat_num` is the absolute integer beat index.
+on the same 100 Hz timeline. `beat_phase` is the original quantized 1/48-beat
+index, and `beat_num` is the original measure-relative beat index in `[0, 4)`.
 
 ## Run tests
 
@@ -206,8 +208,9 @@ With the virtual environment active:
 pytest
 ```
 
-The tests cover constant tempo, tempo changes, Bestdori BPM parsing, tensor
-shapes and dtypes, PyTorch saving/loading, and missing-file errors.
+The tests cover AutoOsu beat quantization, rejection of tempo changes, Bestdori
+BPM parsing, tensor shapes and dtypes, PyTorch saving/loading, and missing-file
+errors.
 
 ## Data and Git
 
@@ -227,7 +230,7 @@ the repository.
 
 Implemented:
 
-- Audio decoding, including M4A/AAC fallback
+- Audio decoding with libsndfile and FFmpeg fallback
 - Mono conversion and 44.1 kHz resampling
 - Three-resolution log-Mel extraction
 - Frame-aligned beat features
@@ -236,7 +239,7 @@ Implemented:
 
 Not implemented yet:
 
-- Chart target tensors (`actions`, `onsets`, and encoded `beatmap`)
+- Bestdori chart-target tensors
 - PyTorch Dataset and batching
 - Transformer model and training loop
 - Predicted tensor to Bestdori JSON conversion

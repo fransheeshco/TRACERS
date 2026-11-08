@@ -12,22 +12,13 @@ import torch
 
 _TENSOR_DTYPES = {
     "specs": torch.float32,
-    "beat_phase": torch.float32,
-    "beat_num": torch.int64,
-    "frame_times": torch.float32,
+    "beat_phase": torch.int32,
+    "beat_num": torch.int32,
 }
-
-_METADATA_KEYS = (
-    "sample_rate",
-    "hop_length",
-    "n_ffts",
-    "n_mels",
-    "offset_seconds",
-)
 
 
 def inspect_tensor_file(path: str | Path) -> dict[str, object]:
-    """Load a ``.pt`` file and validate the TRACERS tensor contract."""
+    """Load a ``.pt`` file and validate the AutoOsu audio tensor contract."""
 
     path = Path(path)
     if not path.is_file():
@@ -39,7 +30,7 @@ def inspect_tensor_file(path: str | Path) -> dict[str, object]:
     if not isinstance(data, dict):
         raise ValueError("Tensor file must contain a dictionary")
 
-    missing = [name for name in (*_TENSOR_DTYPES, "metadata") if name not in data]
+    missing = [name for name in _TENSOR_DTYPES if name not in data]
     if missing:
         raise ValueError(f"Tensor file is missing required entries: {', '.join(missing)}")
 
@@ -57,7 +48,7 @@ def inspect_tensor_file(path: str | Path) -> dict[str, object]:
         raise ValueError(f"specs must have shape (3, T, 80), received {tuple(specs.shape)}")
 
     frame_count = specs.shape[1]
-    for name in ("beat_phase", "beat_num", "frame_times"):
+    for name in ("beat_phase", "beat_num"):
         tensor = data[name]
         if tensor.shape != (frame_count,):
             raise ValueError(
@@ -65,15 +56,11 @@ def inspect_tensor_file(path: str | Path) -> dict[str, object]:
             )
 
     beat_phase = data["beat_phase"]
-    if torch.any((beat_phase < 0) | (beat_phase >= 1)):
-        raise ValueError("beat_phase values must be in the range [0, 1)")
-
-    metadata = data["metadata"]
-    if not isinstance(metadata, dict):
-        raise ValueError("metadata must be a dictionary")
-    missing_metadata = [name for name in _METADATA_KEYS if name not in metadata]
-    if missing_metadata:
-        raise ValueError(f"metadata is missing: {', '.join(missing_metadata)}")
+    if torch.any((beat_phase < 0) | (beat_phase > 48)):
+        raise ValueError("beat_phase values must be in the range [0, 48]")
+    beat_num = data["beat_num"]
+    if torch.any((beat_num < 0) | (beat_num >= 4)):
+        raise ValueError("beat_num values must be in the range [0, 4)")
 
     return data
 
@@ -86,12 +73,6 @@ def print_tensor_report(path: str | Path, data: dict[str, object]) -> None:
     for name in _TENSOR_DTYPES:
         tensor = data[name]
         print(f"{name}: shape={tuple(tensor.shape)}, dtype={tensor.dtype}")
-
-    print("metadata:")
-    metadata = data["metadata"]
-    for name in _METADATA_KEYS:
-        print(f"  {name}: {metadata[name]}")
-
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(

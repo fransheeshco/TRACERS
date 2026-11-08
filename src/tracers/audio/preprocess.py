@@ -43,46 +43,30 @@ def preprocess_audio(
         frame_rate=config.frame_rate,
         tempo_changes=tempo_changes,
         offset_seconds=offset_seconds,
+        beat_division=config.beat_division,
     )
-    frame_times = np.arange(specs.shape[1], dtype=np.float32) / np.float32(config.frame_rate)
     return {
         "specs": torch.from_numpy(specs),
-        "beat_phase": torch.from_numpy(beat_phase),
-        "beat_num": torch.from_numpy(beat_num).long(),
-        "frame_times": torch.from_numpy(frame_times),
+        "beat_phase": torch.from_numpy(beat_phase).int(),
+        "beat_num": torch.from_numpy(beat_num).int(),
     }
 
 
 def save_tensors(
     tensors: dict[str, torch.Tensor],
     output: str | Path,
-    *,
-    config: AudioTensorConfig = AudioTensorConfig(),
-    offset_seconds: float = 0.0,
 ) -> None:
     """Save tensors as native PyTorch ``.pt`` or compatibility ``.npz``."""
 
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    metadata = {
-        "sample_rate": config.sample_rate,
-        "hop_length": config.hop_length,
-        "n_ffts": config.n_ffts,
-        "n_mels": config.n_mels,
-        "offset_seconds": offset_seconds,
-    }
     if output.suffix == ".pt":
-        torch.save({**tensors, "metadata": metadata}, output)
+        torch.save(tensors, output)
         return
     if output.suffix == ".npz":
         np.savez_compressed(
             output,
             **{name: tensor.detach().cpu().numpy() for name, tensor in tensors.items()},
-            sample_rate=np.int32(config.sample_rate),
-            hop_length=np.int32(config.hop_length),
-            n_ffts=np.asarray(config.n_ffts, dtype=np.int32),
-            n_mels=np.int32(config.n_mels),
-            offset_seconds=np.float32(offset_seconds),
         )
         return
     raise ValueError("Output filename must end in .pt (recommended) or .npz")
@@ -90,7 +74,7 @@ def save_tensors(
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Convert audio to DDC-style log-Mel and beat-grid tensors."
+        description="Convert audio to AutoOsu-compatible log-Mel and beat-grid tensors."
     )
     parser.add_argument("audio", type=Path, help="Input WAV, MP3, FLAC, OGG, or M4A file")
     parser.add_argument(
@@ -126,7 +110,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         tensors = preprocess_audio(args.audio, tempo_changes, args.offset_seconds)
-        save_tensors(tensors, output_path, offset_seconds=args.offset_seconds)
+        save_tensors(tensors, output_path)
     except (FileNotFoundError, ValueError) as error:
         parser.error(str(error))
 
