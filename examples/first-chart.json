@@ -1,0 +1,15 @@
+[
+  { "type": "BPM", "bpm": 120, "beat": 0 },
+  { "type": "Single", "lane": 1, "beat": 2.5 },
+  { "type": "Single", "lane": 3, "beat": 2 },
+  { "type": "Single", "lane": 6, "beat": 1.5 },
+  { "type": "Single", "lane": 0, "beat": 1.5, "flick": true },
+  { "type": "Single", "lane": 2, "beat": 1.5, "flick": true },
+  { "type": "Single", "lane": 4, "beat": 1.5, "flick": true },
+  { "type": "Single", "lane": 5, "beat": 1.75, "flick": true },
+  { "type": "Single", "lane": 0, "beat": 1.75, "flick": true },
+  { "type": "Single", "lane": 5, "beat": 2, "skill": true },
+  { "type": "Single", "lane": 1, "beat": 2, "skill": true },
+  { "type": "Single", "lane": 0, "beat": 2.25, "skill": true },
+  { "type": "Single", "lane": 5, "beat": 2.25, "skill": true }
+]

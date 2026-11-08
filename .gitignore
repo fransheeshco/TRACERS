@@ -1,0 +1,32 @@
+.venv/
+.pytest_cache/
+__pycache__/
+*.egg-info/
+*.py[cod]
+
+# Local datasets, copyrighted audio, generated tensors, and model checkpoints
+data/raw/
+data/processed/
+data/checkpoints/
+tensors/
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+*.pt
+*.pth
+*.npz
+
+# Local Sonolus experiment; TRACERS generates charts and does not ship an engine
+/sonolus-engine/
+
+# JavaScript and generated build output
+node_modules/
+.dev/
+dist/
+
+# Editors and operating systems
+.DS_Store
+.vscode/
+.idea/
