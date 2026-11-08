@@ -18,6 +18,16 @@ from .loading import load_audio
 from .spectrogram import extract_log_mel_specs
 
 
+def default_output_path(
+    audio_path: str | Path,
+    output_directory: str | Path = "data/processed",
+) -> Path:
+    """Return a ``.pt`` path that preserves the input audio filename."""
+
+    audio_name = Path(audio_path).with_suffix(".pt").name
+    return Path(output_directory) / audio_name
+
+
 def preprocess_audio(
     audio_path: str | Path,
     tempo_changes: Sequence[TempoChange],
@@ -83,7 +93,15 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Convert audio to DDC-style log-Mel and beat-grid tensors."
     )
     parser.add_argument("audio", type=Path, help="Input WAV, MP3, FLAC, OGG, or M4A file")
-    parser.add_argument("output", type=Path, help="Output .pt (recommended) or .npz file")
+    parser.add_argument(
+        "output",
+        type=Path,
+        nargs="?",
+        help=(
+            "Optional output .pt or .npz path. By default, saves as "
+            "data/processed/<original-audio-name>.pt"
+        ),
+    )
     timing = parser.add_mutually_exclusive_group(required=True)
     timing.add_argument("--bpm", type=float, help="Constant BPM")
     timing.add_argument("--chart-json", type=Path, help="Bestdori chart containing BPM events")
@@ -99,6 +117,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+    output_path = args.output or default_output_path(args.audio)
     if args.chart_json:
         with args.chart_json.open("r", encoding="utf-8") as file:
             tempo_changes = tempo_changes_from_bestdori(json.load(file))
@@ -107,14 +126,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         tensors = preprocess_audio(args.audio, tempo_changes, args.offset_seconds)
-        save_tensors(tensors, args.output, offset_seconds=args.offset_seconds)
+        save_tensors(tensors, output_path, offset_seconds=args.offset_seconds)
     except (FileNotFoundError, ValueError) as error:
         parser.error(str(error))
 
     print(f"specs: {tensors['specs'].shape} {tensors['specs'].dtype}")
     print(f"beat_phase: {tensors['beat_phase'].shape} {tensors['beat_phase'].dtype}")
     print(f"beat_num: {tensors['beat_num'].shape} {tensors['beat_num'].dtype}")
-    print(f"saved: {args.output}")
+    print(f"saved: {output_path}")
     return 0
 
 

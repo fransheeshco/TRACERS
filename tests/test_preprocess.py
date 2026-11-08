@@ -12,7 +12,7 @@ from tracers.audio import (
     TempoChange,
     build_beat_features,
 )
-from tracers.audio.preprocess import preprocess_audio, save_tensors
+from tracers.audio.preprocess import default_output_path, preprocess_audio, save_tensors
 from tracers.charts import tempo_changes_from_bestdori
 
 
@@ -102,6 +102,12 @@ def test_save_and_load_pytorch_tensors(tmp_path: Path) -> None:
     assert loaded["beat_num"].dtype == torch.int64
     assert loaded["metadata"]["sample_rate"] == 44_100
     assert loaded["metadata"]["offset_seconds"] == 0.25
+
+
+def test_default_output_path_preserves_audio_filename() -> None:
+    output = default_output_path("/uploads/My Original Song.m4a")
+
+    assert output == Path("data/processed/My Original Song.pt")
 
 
 def test_missing_audio_has_actionable_error(tmp_path: Path) -> None:

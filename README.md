@@ -101,7 +101,6 @@ from the BPM events in a Bestdori chart:
 ```bash
 preprocess-audio \
   "path/to/song.m4a" \
-  "data/processed/song.pt" \
   --chart-json "examples/first-chart.json" \
   --offset-seconds 0
 ```
@@ -111,7 +110,6 @@ If a song has a constant known BPM, provide it directly:
 ```bash
 preprocess-audio \
   "path/to/song.m4a" \
-  "data/processed/song.pt" \
   --bpm 120 \
   --offset-seconds 0
 ```
@@ -119,6 +117,23 @@ preprocess-audio \
 `offset-seconds` is the position in the audio at which beat 0 occurs. The
 current preprocessor does not estimate BPM or offset automatically; use chart
 timing or verified song metadata.
+
+The output filename is created automatically from the original audio filename.
+For example, processing `My Original Song.m4a` produces:
+
+```text
+data/processed/My Original Song.pt
+```
+
+The preprocessor creates `data/processed/` when necessary. To use a custom
+filename or location, provide it as the second positional argument:
+
+```bash
+preprocess-audio \
+  "path/to/My Original Song.m4a" \
+  "data/processed/custom-name.pt" \
+  --bpm 120
+```
 
 ### Output tensors
 
