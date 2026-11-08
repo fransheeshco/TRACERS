@@ -15,7 +15,7 @@ CSC 173 – Intelligent Systems.
 
 - Cejas, Francis Nelson M.
 - Haganas, Joshua Ray D.
-- Saladaga, Carlo
+- Saladaga Carlo James.
 
 ## Current pipeline
 
