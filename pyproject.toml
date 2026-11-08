@@ -20,6 +20,7 @@ test = ["pytest>=8.3"]
 
 [project.scripts]
 preprocess-audio = "tracers.audio.preprocess:main"
+inspect-tensors = "tracers.audio.inspect:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

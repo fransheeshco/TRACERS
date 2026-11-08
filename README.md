@@ -168,6 +168,18 @@ beat_num = beat_num.unsqueeze(0)      # (1, T)
 The `.pt` file also contains `frame_times` and extraction metadata. A `.npz`
 output filename can be used when NumPy compatibility is required.
 
+### Inspect a tensor file
+
+Use the inspector to view tensor shapes, dtypes, and preprocessing metadata:
+
+```bash
+inspect-tensors "data/processed/My Original Song.pt"
+```
+
+The command also validates that all required tensors are present, their shapes
+and dtypes match the TRACERS format, their frame counts agree, and their values
+are finite. It reports an actionable error when the file is missing or invalid.
+
 ## Preprocessing representation
 
 The audio representation follows the three-resolution front end used by DDC:
