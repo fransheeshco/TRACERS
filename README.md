@@ -1,9 +1,21 @@
 # TRACERS
 
-TRACERS is a PyTorch project for generating rhythm-game charts from music. The
-current implementation preprocesses audio into frame-aligned tensors suitable
-for a chart-generating Transformer. Model training and chart prediction will be
-added as the project develops.
+**TRACERS (Transformer-based Rhythm-Aware Chart Encoding and Rendering System)**
+is a transformer-based rhythm game chart generation system developed as a
+midterm project for CSC 173 – Intelligent Systems. The project explores the
+application of transformer architectures in analyzing musical patterns and
+automatically generating playable rhythm charts for Sonolus. It aims to reduce
+manual chart creation while producing note sequences that align with a song's
+rhythm, tempo, and musical structure.
+
+This project is submitted in partial fulfillment of the requirements for
+CSC 173 – Intelligent Systems.
+
+## Project Members (Group 6)
+
+- Cejas, Francis Nelson M.
+- Haganas, Joshua Ray D.
+- Saladaga, Carlo
 
 ## Current pipeline
 
