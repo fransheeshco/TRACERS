@@ -17,6 +17,7 @@ tensors/
 *.pt
 *.pth
 *.npz
+*.csv
 
 # Local Sonolus experiment; TRACERS generates charts and does not ship an engine
 /sonolus-engine/
@@ -30,3 +31,5 @@ dist/
 .DS_Store
 .vscode/
 .idea/
+
+wandb/
