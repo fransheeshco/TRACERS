@@ -6,12 +6,13 @@ import wandb
 from tqdm import tqdm
 from omegaconf import OmegaConf
 
-from metrics import (
+from .metrics import (
     init_metric_counts,
     finalize_metrics,
     update_metric_counts,
 )
-from loss import get_loss
+from ..models.loss import get_loss
+
 
 def select_action(logits, temperature=None, top_k=None, top_p=None):
     """logits: [B, 256]. temperature=None (or <=0) means greedy."""
