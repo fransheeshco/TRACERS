@@ -185,16 +185,16 @@ are finite. It reports an actionable error when the file is missing or invalid.
 
 The audio representation follows the original AutoOsu converter:
 
-| Setting | Value |
-|---|---:|
-| Sample rate | 44,100 Hz |
-| Hop length | 441 samples |
-| Frame rate | 100 frames/second |
-| FFT sizes | 1024, 2048, 4096 |
-| Mel bands | 80 |
-| Frequency range | 0 Hz to 11,000 Hz |
-| Spectral value | Natural-log Mel power |
-| Window/padding | Torchaudio defaults (Hann/reflect) |
+| Setting         |                              Value |
+| --------------- | ---------------------------------: |
+| Sample rate     |                          44,100 Hz |
+| Hop length      |                        441 samples |
+| Frame rate      |                  100 frames/second |
+| FFT sizes       |                   1024, 2048, 4096 |
+| Mel bands       |                                 80 |
+| Frequency range |                  0 Hz to 11,000 Hz |
+| Spectral value  |              Natural-log Mel power |
+| Window/padding  | Torchaudio defaults (Hann/reflect) |
 
 The three FFT sizes show the model short transients and longer musical context
 on the same 100 Hz timeline. `beat_phase` is the original quantized 1/48-beat

@@ -1,0 +1,42 @@
+experiment:
+  num_epochs: 102
+
+  checkpoint_path: checkpoints
+  resume_from: notebooks/checkpoints/latest.pt
+
+  log_to_wandb: true
+  wandb_project: tracer
+  run_name: tracer-1
+
+hyperparams:
+  learning_rate: 0.0001
+  weight_decay: 0.01
+
+  np_fl_gamma: 2.0
+  np_fl_weight: 0.8
+
+  ns_fl_gamma: 3.0
+  ns_fl_weight: 0.5
+
+  np_loss_multiplier: 7.0
+
+  bp_emb_dim: 32
+  bn_emb_dim: 16
+  diff_emb_dim: 16
+
+  np_hidden_size: 256
+  np_num_layers: 2
+
+  ns_pre_proj_size: 32
+  ns_hidden_size: 256
+  ns_num_layers: 2
+
+  action_emb_dim: 32
+
+  np_prob_emb_dim: 16
+
+  segment_frames: 2000
+
+  max_len: 2000
+
+  batch_size: 10

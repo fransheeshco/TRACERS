@@ -13,6 +13,9 @@ dependencies = [
     "soundfile>=0.13",
     "torch>=2.15",
     "torchaudio>=2.11.1",
+    "hydra-core",
+    "wandb",
+    "tqdm"
 ]
 
 [project.optional-dependencies]
