@@ -90,31 +90,19 @@ class Trainer:
 
         print(f"Saved checkpoint: {path}")
 
-    def load_checkpoint(self, filename):
-        checkpoint = torch.load(
-            filename,
-            map_location=self.device,
-        )
+    def load_checkpoint(self, filename, load_optimizer=True):
+        checkpoint = torch.load(filename, map_location=self.device)
 
-        self.model.load_state_dict(
-            checkpoint["model_state_dict"]
-        )
+        self.model.load_state_dict(checkpoint["model_state_dict"])
 
-        self.optimizer.load_state_dict(
-            checkpoint["optimizer_state_dict"]
-        )
+        if load_optimizer and "optimizer_state_dict" in checkpoint:
+            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
-        # Resume at the epoch AFTER the saved epoch.
         self.start_epoch = checkpoint["epoch"]
-        self.best_val_loss = checkpoint.get(
-            "best_val_loss",
-            float("inf"),
-        )
+        self.best_val_loss = checkpoint.get("best_val_loss", float("inf"))
 
-        print(
-            f"Resumed from epoch {self.start_epoch}. "
-            f"Best validation loss: {self.best_val_loss:.4f}"
-        )
+        print(f"Loaded {filename} (epoch {self.start_epoch}, "
+            f"best val loss {self.best_val_loss:.4f})")
 
     # =========================================
     # ONE EPOCH
@@ -243,17 +231,13 @@ class Trainer:
                 name=self.experiment_config.run_name,
                 config={
                     "experiment": OmegaConf.to_container(
-                        self.experiment_config,
-                        resolve=True,
+                        self.experiment_config, resolve=True,
                     ),
                     "hyperparams": OmegaConf.to_container(
-                        self.hyperparams,
-                        resolve=True,
+                        self.hyperparams, resolve=True,
                     ),
                 },
-                settings=wandb.Settings(
-                    console="wrap",
-                ),
+                settings=wandb.Settings(console="wrap"),
             )
 
         try:
@@ -266,75 +250,27 @@ class Trainer:
                 # TRAINING
                 train_start = time.perf_counter()
                 train_losses, train_metrics = self._run_epoch(
-                    self.train_loader,
-                    training=True,
+                    self.train_loader, training=True,
                 )
                 train_seconds = time.perf_counter() - train_start
 
                 # VALIDATION
                 val_start = time.perf_counter()
                 val_losses, val_metrics = self._run_epoch(
-                    self.valid_loader,
-                    training=False,
+                    self.valid_loader, training=False,
                 )
                 val_seconds = time.perf_counter() - val_start
                 epoch_seconds = time.perf_counter() - epoch_start
-                # =================================
-                # PRINT RESULTS
-                # =================================
 
+                # PRINT RESULTS
                 print(f"\n{'=' * 60}")
                 print(f"Epoch {epoch + 1}/{self.num_epochs}")
                 print(f"{'=' * 60}")
 
-                print(
-                    f"Train | Total: {train_losses['total']:.4f} | "
-                    f"NP: {train_losses['np']:.4f} | "
-                    f"NS: {train_losses['ns']:.4f}"
-                )
+                self._print_results("TRAIN", train_losses, train_metrics)
+                self._print_results("VAL", val_losses, val_metrics)
 
-                print(
-                    f"Val   | Total: {val_losses['total']:.4f} | "
-                    f"NP: {val_losses['np']:.4f} | "
-                    f"NS: {val_losses['ns']:.4f}"
-                )
-
-                for name, metrics in [
-                    ("TRAIN", train_metrics),
-                    ("VAL", val_metrics),
-                ]:
-                    print(f"\n{name} METRICS")
-
-                    print(
-                        f"Onset  | "
-                        f"P: {metrics['onset_precision']:.4f} | "
-                        f"R: {metrics['onset_recall']:.4f} | "
-                        f"F1: {metrics['onset_f1']:.4f}"
-                    )
-
-                    print(
-                        f"Action | "
-                        f"P: {metrics['action_precision']:.4f} | "
-                        f"R: {metrics['action_recall']:.4f} | "
-                        f"F1: {metrics['action_f1']:.4f}"
-                    )
-
-                    print(
-                        f"Active Exact Accuracy: "
-                        f"{metrics['active_exact_accuracy']:.4f}"
-                    )
-
-                    print(
-                        f"GT Active Rate: "
-                        f"{metrics['gt_active_rate']:.2%} | "
-                        f"Predicted Active Rate: "
-                        f"{metrics['predicted_active_rate']:.2%}"
-                    )
-
-                # =================================
                 # W&B LOGGING
-                # =================================
-
                 if use_wandb:
                     log_data = {
                         "epoch": epoch + 1,
@@ -359,29 +295,16 @@ class Trainer:
 
                     wandb.log(log_data)
 
-                # =================================
                 # CHECKPOINTING
-                # =================================
+                self.save_checkpoint(epoch=epoch + 1, filename="latest.pt")
 
-                # Save the latest model after every epoch.
-                self.save_checkpoint(
-                    epoch=epoch + 1,
-                    filename="latest.pt",
-                )
-
-                # Save the best model based on validation loss.
                 if val_losses["total"] < self.best_val_loss:
                     self.best_val_loss = val_losses["total"]
-
-                    self.save_checkpoint(
-                        epoch=epoch + 1,
-                        filename="best.pt",
-                    )
+                    self.save_checkpoint(epoch=epoch + 1, filename="best.pt")
 
         finally:
             if use_wandb:
                 wandb.finish()
-
 
     @torch.inference_mode()
     def predict(self, batch):
@@ -570,3 +493,32 @@ class Trainer:
             "valid_frames": valid_frames.cpu(),
         }
 
+    def _print_results(self, name, losses, metrics):
+        print(f"\n{'=' * 60}\n{name}\n{'=' * 60}")
+        print(f"Loss   | Total: {losses['total']:.4f} | "
+            f"NP: {losses['np']:.4f} | NS: {losses['ns']:.4f}")
+        print(f"Onset  | P: {metrics['onset_precision']:.4f} | "
+            f"R: {metrics['onset_recall']:.4f} | F1: {metrics['onset_f1']:.4f}")
+        print(f"Action | P: {metrics['action_precision']:.4f} | "
+            f"R: {metrics['action_recall']:.4f} | F1: {metrics['action_f1']:.4f}")
+        print(f"Active Exact Accuracy: {metrics['active_exact_accuracy']:.4f}")
+        print(f"GT Active Rate: {metrics['gt_active_rate']:.2%} | "
+            f"Predicted Active Rate: {metrics['predicted_active_rate']:.2%}")
+
+    def evaluate(self, loader=None, checkpoint=None, name="VAL"):
+        """Evaluate one checkpoint on one loader. No training, no W&B."""
+        loader = self.valid_loader if loader is None else loader
+        if loader is None:
+            raise ValueError("Pass a loader, or construct the Trainer with valid_loader.")
+
+        if checkpoint is not None:
+            self.load_checkpoint(checkpoint, load_optimizer=False)
+
+        self.model.to(self.device)
+
+        start = time.perf_counter()
+        losses, metrics = self._run_epoch(loader, training=False)
+        seconds = time.perf_counter() - start
+
+        self._print_results(f"{name} ({seconds:.0f}s)", losses, metrics)
+        return {"losses": losses, "metrics": metrics}
