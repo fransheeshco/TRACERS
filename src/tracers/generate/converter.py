@@ -124,6 +124,7 @@ def predictions_to_json(
     return events
 
 
+
 def export_generation_debug(
     segments,
     output_path="generation_debug.csv",
@@ -133,13 +134,21 @@ def export_generation_debug(
     Export per-frame autoregressive generation diagnostics.
 
     Each segment must contain:
-        start
+        start (or input_frame_start)
         action_inputs
         action_predictions
         np_pred
         ns_logits
-        actual
         valid_frames
+
+    Optional:
+        actual: Ground-truth action tokens. Can be None or omitted.
+
+    Frame numbering:
+        input_frame = input_frame_start + t
+        target_frame = input_frame + 1
+
+    If input_frame_start is not supplied, 'start' is used.
     """
 
     import csv
@@ -154,7 +163,6 @@ def export_generation_debug(
 
     top_k = min(top_k, 256)
 
-    # CSV columns
     fields = [
         "segment_start",
         "input_frame",
@@ -163,6 +171,7 @@ def export_generation_debug(
         "np_prob",
         "predicted_action",
         "predicted_lanes",
+        "has_ground_truth",
         "ground_truth_action",
         "ground_truth_lanes",
         "p_empty",
@@ -191,7 +200,13 @@ def export_generation_debug(
 
         for segment in segments:
 
-            start = int(segment["start"])
+            # Prefer explicit input_frame_start when available.
+            start = int(
+                segment.get(
+                    "input_frame_start",
+                    segment.get("start", 0)
+                )
+            )
 
             inputs = torch.as_tensor(
                 segment["action_inputs"]
@@ -199,10 +214,6 @@ def export_generation_debug(
 
             predictions = torch.as_tensor(
                 segment["action_predictions"]
-            ).detach().cpu().long().reshape(-1)
-
-            actual = torch.as_tensor(
-                segment["actual"]
             ).detach().cpu().long().reshape(-1)
 
             np_probs = torch.as_tensor(
@@ -217,19 +228,49 @@ def export_generation_debug(
                 segment["valid_frames"]
             ).detach().cpu().bool().reshape(-1)
 
-            n = min(
-                len(inputs),
-                len(predictions),
-                len(actual),
-                len(np_probs),
-                len(logits),
-                len(valid),
-            )
+            # Ground truth is optional.
+            actual = None
 
-            # Convert raw logits into probabilities.
+            if segment.get("actual") is not None:
+                actual = torch.as_tensor(
+                    segment["actual"]
+                ).detach().cpu().long().reshape(-1)
+
+                if actual.numel():
+                    if actual.min() < 0 or actual.max() > 255:
+                        raise ValueError(
+                            "Ground-truth actions must be in [0,255]."
+                        )
+
+            # Validate logits.
+            if logits.ndim != 2 or logits.size(-1) != 256:
+                raise ValueError(
+                    f"Expected ns_logits [T,256], got {tuple(logits.shape)}"
+                )
+
+            # Determine the number of usable frames.
+            lengths = [
+                inputs.numel(),
+                predictions.numel(),
+                np_probs.numel(),
+                logits.size(0),
+                valid.numel(),
+            ]
+
+            if actual is not None:
+                lengths.append(actual.numel())
+
+            n = min(lengths)
+
+            if n == 0:
+                continue
+
+            # =====================================
+            # PROBABILITIES
+            # =====================================
+
             probs = torch.softmax(logits[:n], dim=-1)
 
-            # Top-k candidates for each frame.
             top_probs, top_tokens = torch.topk(
                 probs,
                 k=top_k,
@@ -241,24 +282,35 @@ def export_generation_debug(
             p_empty = probs[:, 0]
             p_active = 1.0 - p_empty
 
-            # Probability assigned to the actual action.
-            p_gt = probs.gather(
-                -1,
-                actual[:n].unsqueeze(-1),
-            ).squeeze(-1)
+            # Only calculate GT probabilities if ground truth exists.
+            if actual is not None:
+                p_gt = probs.gather(
+                    -1,
+                    actual[:n].unsqueeze(-1),
+                ).squeeze(-1)
+            else:
+                p_gt = None
+
+            # =====================================
+            # EXPORT FRAME RECORDS
+            # =====================================
 
             for t in range(n):
 
                 if not valid[t]:
                     continue
 
-                gt_action = int(actual[t])
+                gt_action = (
+                    int(actual[t])
+                    if actual is not None
+                    else None
+                )
+
                 pred_action = int(predictions[t])
 
                 row = {
                     "segment_start": start,
 
-                    # actions_input predicts actions_target.
                     "input_frame": start + t,
                     "target_frame": start + t + 1,
 
@@ -266,35 +318,48 @@ def export_generation_debug(
                     "np_prob": float(np_probs[t]),
 
                     "predicted_action": pred_action,
-                    "predicted_lanes": decode_action(
-                        pred_action
+                    "predicted_lanes": decode_action(pred_action),
+
+                    "has_ground_truth": actual is not None,
+
+                    "ground_truth_action": (
+                        gt_action if gt_action is not None else ""
                     ),
 
-                    "ground_truth_action": gt_action,
-                    "ground_truth_lanes": decode_action(
-                        gt_action
+                    "ground_truth_lanes": (
+                        decode_action(gt_action)
+                        if gt_action is not None
+                        else ""
                     ),
 
                     "p_empty": float(p_empty[t]),
                     "p_active": float(p_active[t]),
-                    "p_gt_action": float(p_gt[t]),
+
+                    "p_gt_action": (
+                        float(p_gt[t])
+                        if p_gt is not None
+                        else ""
+                    ),
 
                     "p_gt_action_given_active": (
                         float(p_gt[t] / p_active[t])
-                        if gt_action != 0 and p_active[t] > 0
+                        if (
+                            p_gt is not None
+                            and gt_action is not None
+                            and gt_action != 0
+                            and p_active[t] > 0
+                        )
                         else ""
                     ),
                 }
 
-                # Add top-k NS candidates.
+                # Top-k NS candidates.
                 for k in range(top_k):
 
                     token = int(top_tokens[t, k])
 
                     row[f"top{k+1}_token"] = token
-                    row[f"top{k+1}_lanes"] = (
-                        decode_action(token)
-                    )
+                    row[f"top{k+1}_lanes"] = decode_action(token)
                     row[f"top{k+1}_logit"] = float(
                         top_logits[t, k]
                     )
@@ -305,7 +370,9 @@ def export_generation_debug(
                 writer.writerow(row)
                 row_count += 1
 
-    print(f"Exported {row_count} frame records to: {output_path}")
+    print(
+        f"Exported {row_count} frame records to: {output_path}"
+    )
 
     return row_count
 
