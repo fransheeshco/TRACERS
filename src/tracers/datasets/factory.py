@@ -6,10 +6,10 @@ from tracers.datasets import AutoOsu4KDataset, make_dataloader, split_song_ids
 from tracers.datasets.dataset import GlobalAudioCollator
 
 
-def build_song_split(root: str | Path, *, segment_frames: int, seed: int = 42):
+def build_song_split(root: str | Path, dataset_folder_name: str = "dataset", *, segment_frames: int, seed: int = 42):
     root = Path(root)
-    audio_dir = root / "dataset" / "audio"
-    beatmap_dir = root / "dataset" / "beatmap" / "4keys"
+    audio_dir = root / dataset_folder_name / "audio"
+    beatmap_dir = root / dataset_folder_name / "beatmap" / "4keys"
 
     base_dataset = AutoOsu4KDataset(
         beatmap_dir=beatmap_dir,
@@ -28,9 +28,10 @@ def build_song_split(root: str | Path, *, segment_frames: int, seed: int = 42):
     return audio_dir, beatmap_dir, train_ids, val_ids, test_ids
 
 
-def build_datasets(root: str | Path, *, segment_frames: int, seed: int = 42):
+def build_datasets(root: str | Path, dataset_folder_name: str = "dataset", *, segment_frames: int, seed: int = 42):
     audio_dir, beatmap_dir, train_ids, val_ids, test_ids = build_song_split(
         root,
+        dataset_folder_name,
         segment_frames=segment_frames,
         seed=seed,
     )
