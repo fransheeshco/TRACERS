@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -365,9 +367,14 @@ class TracerNpModel(TracerModel):
 
         return np_pred, ns_logits
 
+if TYPE_CHECKING:
+    _MixinBase = TracerModel      # lets the type checker resolve self.stack, self.np_proj_1, ...
+else:
+    _MixinBase = object           # at runtime the mixin stays a plain mixin
 
 
-class _GlobalContextMixin:
+class _GlobalContextMixin(_MixinBase):
+
     """Adds full-song audio context to an existing Tracer model."""
 
     def _init_global_context(self, hyperparams):
