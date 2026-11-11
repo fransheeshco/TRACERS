@@ -1,15 +1,15 @@
 experiment:
-  num_epochs: 102
+  num_epochs: 20
 
   checkpoint_path: checkpoints
-  resume_from: notebooks/checkpoints/latest.pt
+  resume_from: notebooks/checkpoints/best.pt
 
   log_to_wandb: true
   wandb_project: tracer
-  run_name: tracer-1
+  run_name: tracer-np-augment-4-lr5e-5
 
 hyperparams:
-  learning_rate: 0.0001
+  learning_rate: 0.00005
   weight_decay: 0.01
 
   np_fl_gamma: 2.0
@@ -39,4 +39,11 @@ hyperparams:
 
   max_len: 2000
 
-  batch_size: 10
+  batch_size: 6
+
+  global_dim: 128
+  global_tokens: 512
+  global_heads: 4
+  global_num_layers: 2
+  global_ff_dim: 256
+  global_dropout: 0.1

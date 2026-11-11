@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Iterable, Literal, Optional, Sequence
 
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, default_collate
 
 
 CropMode = Literal["random", "all", "center"]
@@ -291,6 +291,7 @@ class AutoOsu4KDataset(Dataset):
         song_ids: Optional[Iterable[str]] = None,
         audio_cache_size: int = 8,
         check_on_load: bool = True,
+        original_only: bool = False,
     ):
         self.beatmap_dir = Path(beatmap_dir)
         self.audio_dir = Path(audio_dir)
@@ -331,6 +332,12 @@ class AutoOsu4KDataset(Dataset):
         records: list[ChartRecord] = []
         missing_audio: list[str] = []
         for chart_path in sorted(self.beatmap_dir.glob("*.pt")):
+            # Original AutoOsu chart IDs end in "-4".
+            # Augmented variants have additional suffixes, e.g. "-lr".
+            if original_only:
+                parts = chart_path.stem.split("-")
+                if len(parts) != 3 or parts[-1] != "4":
+                    continue
             song_id = song_id_from_chart_path(chart_path)
             if allowed_song_ids is not None and song_id not in allowed_song_ids:
                 continue
@@ -612,10 +619,11 @@ def make_dataloader(
     shuffle: bool = False,
     num_workers: int = 0,
     pin_memory: Optional[bool] = None,
+    collate_fn=None,
 ) -> DataLoader:
-    """Small helper with Windows/Jupyter-friendly defaults."""
     if pin_memory is None:
         pin_memory = torch.cuda.is_available()
+
     return DataLoader(
         dataset,
         batch_size=batch_size,
@@ -623,4 +631,127 @@ def make_dataloader(
         num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=False,
+        collate_fn=collate_fn,
     )
+
+
+class FullSongAudioStore:
+    """Lazy CPU store for full-song spectrograms."""
+
+    def __init__(
+        self,
+        audio_dir,
+        song_ids=None,
+        cache_size=2
+    ):
+        self.audio_dir = Path(audio_dir)
+        self.allowed_song_ids = (
+            None if song_ids is None
+            else set(str(x) for x in song_ids)
+        )
+
+        self.paths = {
+            path.stem: path
+            for path in self.audio_dir.glob("*.pt")
+        }
+
+        self.cache_size = max(0, int(cache_size))
+        self.cache = OrderedDict()
+
+    def __getitem__(self, song_id):
+        song_id = str(song_id)
+
+        if (
+            self.allowed_song_ids is not None
+            and song_id not in self.allowed_song_ids
+        ):
+            raise KeyError(f"Song {song_id} is outside this dataset split.")
+
+        if song_id in self.cache:
+            self.cache.move_to_end(song_id)
+            return self.cache[song_id]
+
+        path = self.paths.get(song_id)
+
+        if path is None:
+            raise FileNotFoundError(
+                f"Missing full-song audio: {song_id}.pt"
+            )
+
+        audio = _torch_load(path)
+
+        specs = torch.as_tensor(
+            audio["specs"]
+        ).cpu().float()
+
+        if specs.ndim != 3 or specs.shape[0] != 3 or specs.shape[2] != 80:
+            raise ValueError(
+                f"{path}: expected specs [3,T,80], got {tuple(specs.shape)}"
+            )
+
+        if specs.size(1) < 2:
+            raise ValueError(f"{path}: not enough audio frames.")
+
+        # Match the dataset's teacher-forcing alignment:
+        # local crop starts at original audio frame start + 1.
+        #
+        # Therefore, global index 0 corresponds to original frame 1.
+        specs = specs[:, 1:, :].contiguous()
+
+        if self.cache_size > 0:
+            self.cache[song_id] = specs
+            self.cache.move_to_end(song_id)
+
+            while len(self.cache) > self.cache_size:
+                self.cache.popitem(last=False)
+
+        return specs
+
+
+class GlobalAudioCollator:
+    """
+    Adds unique full-song spectrograms to a normal chart batch.
+
+    Multiple charts/crops from the same song share one entry.
+    """
+
+    def __init__(
+        self,
+        audio_dir,
+        song_ids=None,
+        cache_size=2
+    ):
+        self.audio_store = FullSongAudioStore(
+            audio_dir=audio_dir,
+            song_ids=song_ids,
+            cache_size=cache_size
+        )
+
+    def __call__(self, samples):
+        batch = default_collate(samples)
+
+        song_to_index = {}
+        unique_specs = []
+        global_indices = []
+
+        for sample in samples:
+            song_id = sample["song_id"]
+
+            if song_id not in song_to_index:
+                song_to_index[song_id] = len(unique_specs)
+                unique_specs.append(
+                    self.audio_store[song_id]
+                )
+
+            global_indices.append(song_to_index[song_id])
+
+        # A list because full songs have different lengths.
+        batch["global_specs"] = unique_specs
+
+        # Maps each chart sample to its full-song tensor.
+        batch["global_indices"] = torch.tensor(
+            global_indices,
+            dtype=torch.long
+        )
+
+        return batch
