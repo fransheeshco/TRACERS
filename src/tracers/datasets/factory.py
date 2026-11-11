@@ -50,6 +50,7 @@ def build_datasets(root: str | Path, *, segment_frames: int, seed: int = 42):
         segment_frames=segment_frames,
         crop_mode="all",
         song_ids=val_ids,
+        original_only=True
     )
 
     test_dataset = AutoOsu4KDataset(
@@ -58,6 +59,7 @@ def build_datasets(root: str | Path, *, segment_frames: int, seed: int = 42):
         segment_frames=segment_frames,
         crop_mode="all",
         song_ids=test_ids,
+        original_only=True
     )
 
     return audio_dir, beatmap_dir, train_dataset, val_dataset, test_dataset, train_ids, val_ids, test_ids
