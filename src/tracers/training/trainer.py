@@ -104,6 +104,27 @@ class Trainer:
         print(f"Loaded {filename} (epoch {self.start_epoch}, "
             f"best val loss {self.best_val_loss:.4f})")
 
+    def _get_global_model_kwargs(self, batch):
+        # Original models don't need global audio.
+        if not hasattr(self.model, "prepare_global_context"):
+            return {}
+
+        # Global models require these additional batch fields.
+        required = ["global_specs", "global_indices", "start_frame"]
+        missing = [key for key in required if key not in batch]
+
+        if missing:
+            raise ValueError(
+                f"Global-context model requires batch fields: {missing}. "
+                "Use GlobalAudioCollator with this DataLoader."
+            )
+
+        return {
+            "global_specs": batch["global_specs"],
+            "global_indices": batch["global_indices"],
+            "start_frames": batch["start_frame"],
+        }
+
     # =========================================
     # ONE EPOCH
     # =========================================
@@ -144,9 +165,8 @@ class Trainer:
                 actions_input = batch["actions_input"]
                 valid_frames = batch["valid_frames"]
 
-                global_specs = batch["global_specs"]
-                global_indices=batch["global_indices"]
-                start_frames=batch["start_frame"]
+                model_kwargs = self._get_global_model_kwargs(batch)
+
 
                 if training:
                     self.optimizer.zero_grad(set_to_none=True)
@@ -159,9 +179,7 @@ class Trainer:
                     difficulties,
                     actions_input,
                     valid_frames,
-                    global_specs=global_specs,
-                    global_indices=global_indices,
-                    start_frames=start_frames
+                    **model_kwargs
                 )
 
                 # Calculate losses
@@ -302,12 +320,14 @@ class Trainer:
 
                     wandb.log(log_data)
 
-                # CHECKPOINTING
-                self.save_checkpoint(epoch=epoch + 1, filename="latest.pt")
+
 
                 if val_losses["total"] < self.best_val_loss:
                     self.best_val_loss = val_losses["total"]
                     self.save_checkpoint(epoch=epoch + 1, filename="best.pt")
+
+                # CHECKPOINTING
+                self.save_checkpoint(epoch=epoch + 1, filename="latest.pt")
 
         finally:
             if use_wandb:
@@ -324,6 +344,8 @@ class Trainer:
             for key, value in batch.items()
         }
 
+        model_kwargs = self._get_global_model_kwargs(batch)
+
         # Forward pass
         np_pred, ns_logits = self.model(
             batch["specs"],
@@ -332,6 +354,7 @@ class Trainer:
             batch["difficulty"],
             batch["actions_input"],
             batch["valid_frames"],
+            **model_kwargs
         )
 
         # Select the most likely action token
