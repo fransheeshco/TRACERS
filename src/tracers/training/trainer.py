@@ -144,6 +144,10 @@ class Trainer:
                 actions_input = batch["actions_input"]
                 valid_frames = batch["valid_frames"]
 
+                global_specs = batch["global_specs"]
+                global_indices=batch["global_indices"]
+                start_frames=batch["start_frame"]
+
                 if training:
                     self.optimizer.zero_grad(set_to_none=True)
 
@@ -155,6 +159,9 @@ class Trainer:
                     difficulties,
                     actions_input,
                     valid_frames,
+                    global_specs=global_specs,
+                    global_indices=global_indices,
+                    start_frames=start_frames
                 )
 
                 # Calculate losses
@@ -351,6 +358,7 @@ class Trainer:
         top_p=None,
         seed=None,
         prefix_actions=None,
+        global_context=None,
     ):
         if seed is not None:
             torch.manual_seed(seed)
@@ -447,6 +455,10 @@ class Trainer:
         np_pred = None
 
         for t in range(generate_from, seq_len):
+            model_kwargs = {}
+
+            if global_context is not None:
+                model_kwargs["global_context"] = global_context
 
             np_pred, ns_logits = self.model(
                 specs,
@@ -455,6 +467,7 @@ class Trainer:
                 difficulties,
                 actions_input,
                 valid_frames,
+                **model_kwargs,
             )
 
             if ns_logits_steps is None:

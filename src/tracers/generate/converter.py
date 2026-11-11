@@ -309,6 +309,7 @@ def export_generation_debug(
 
     return row_count
 
+
 @torch.inference_mode()
 def generate_custom_song(
     trainer,
@@ -325,15 +326,16 @@ def generate_custom_song(
 ):
     data = torch.load(audio_path, map_location="cpu", weights_only=True)
 
-    specs = data["specs"].float()
-    beat_phase = data["beat_phase"].long()
-    beat_num = data["beat_num"].long()
+    # Match training alignment: predict frames 1 through T-1.
+    specs = data["specs"].float()[:, 1:, :].contiguous()
+    beat_phase = data["beat_phase"].long()[1:]
+    beat_num = data["beat_num"].long()[1:]
 
     total_frames = specs.shape[1]
 
-    assert beat_phase.shape[0] == total_frames, "beat_phase length mismatch"
-    assert beat_num.shape[0] == total_frames, "beat_num length mismatch"
-    assert total_frames > 0, "Audio contains no frames."
+    assert beat_phase.shape[0] == total_frames
+    assert beat_num.shape[0] == total_frames
+    assert total_frames > 0
     assert 0 <= beat_phase.min() and beat_phase.max() <= 48
     assert 0 <= beat_num.min() and beat_num.max() <= 3
 
@@ -344,28 +346,53 @@ def generate_custom_song(
         raise ValueError("context_frames must be smaller than segment_frames.")
 
     stride = segment_frames - context_frames
-
-    print(f"Frames: {total_frames} ({total_frames * 0.01:.1f} s)")
-    print(f"Window size: {segment_frames} | Context: {context_frames} | Stride: {stride}")
-
     difficulty = float(difficulty) * 0.2
 
-    # Preallocate the final generated chart.
-    generated = torch.empty(total_frames, dtype=torch.long)
+    print(f"Prediction frames: {total_frames} ({total_frames * 0.01:.1f} s)")
+    print(
+        f"Window size: {segment_frames} | "
+        f"Context: {context_frames} | Stride: {stride}"
+    )
 
+    # =====================================
+    # PRECOMPUTE GLOBAL CONTEXT
+    # =====================================
+
+    model = trainer.model
+    model.eval()
+
+    device = next(model.parameters()).device
+
+    full_global_context = None
+
+    if hasattr(model, "prepare_global_context"):
+        full_global_context = model.prepare_global_context(
+            global_specs=[specs],
+            global_indices=torch.tensor([0]),
+            start_frames=torch.tensor([0]),
+            seq_len=total_frames,
+            device=device,
+            dtype=specs.dtype,
+        )
+
+    # =====================================
+    # GENERATION
+    # =====================================
+
+    generated = torch.empty(total_frames, dtype=torch.long)
     debug_segments = []
 
-    for window_idx, start in enumerate(range(0, total_frames, stride)):
+    written_until = 0
+    window_idx = 0
 
+    while written_until < total_frames:
+
+        # Start the next window with previously generated context.
+        start = max(0, written_until - context_frames)
         end = min(start + segment_frames, total_frames)
         length = end - start
 
-        # Number of previously generated frames in this window.
-        context_len = 0 if start == 0 else min(context_frames, length)
-
-        # =====================================
-        # BUILD AUDIO WINDOW
-        # =====================================
+        context_len = written_until - start
 
         batch = {
             "specs": specs[:, start:end].unsqueeze(0),
@@ -389,13 +416,25 @@ def generate_custom_song(
         if start == 0:
             prefix_actions = None
         else:
-            # One preceding action + previous context actions.
+            # Decoder inputs for the already-generated overlap.
+            # Includes one preceding action plus context_len actions.
             prefix_actions = generated[
-                start - 1 : start + context_len
+                start - 1 : written_until
             ].unsqueeze(0)
 
             if prefix_actions.size(1) != context_len + 1:
                 raise RuntimeError("Previous action context is incomplete.")
+
+        # =====================================
+        # GLOBAL CONTEXT
+        # =====================================
+
+        generate_kwargs = {}
+
+        if full_global_context is not None:
+            generate_kwargs["global_context"] = (
+                full_global_context[:, start:end, :]
+            )
 
         # =====================================
         # GENERATE
@@ -407,49 +446,378 @@ def generate_custom_song(
             temperature=temperature,
             top_k=top_k,
             top_p=top_p,
-            seed=seed if start == 0 else None,
+            seed=seed if window_idx == 0 else None,
             prefix_actions=prefix_actions,
+            **generate_kwargs,
         )
 
         predictions = results["action_predictions"][0]
 
-        # Discard predictions for the overlapping context.
+        if predictions.numel() != length:
+            raise RuntimeError(
+                f"Expected {length} predictions, got {predictions.numel()}."
+            )
+
+        # Discard predictions for the previously generated context.
         new_predictions = predictions[context_len:]
 
-        # Only write newly generated frames into the final chart.
-        generated[start + context_len:end] = new_predictions
+        expected_new = end - written_until
+
+        if new_predictions.numel() != expected_new:
+            raise RuntimeError(
+                f"Expected {expected_new} new predictions, "
+                f"got {new_predictions.numel()}."
+            )
+
+        generated[written_until:end] = new_predictions
 
         # =====================================
         # DEBUG
         # =====================================
 
         if collect_debug:
-            new_start = context_len
+            debug_segments.append({
+                "start": written_until + 1,
+                "window_start": start + 1,
+                "end": end + 1,
+                "action_inputs": results["action_inputs"][0][context_len:length],
+                "action_predictions": new_predictions,
+                "np_pred": results["np_pred"][0][context_len:length],
+                "ns_logits": results["ns_logits"][0][context_len:length],
+                "valid_frames": results["valid_frames"][0][context_len:length],
+            })
+
+        print(
+            f"Window {start + 1:6d}-{end:6d} | "
+            f"Context: {context_len:4d} | "
+            f"New: {len(new_predictions):4d} | "
+            f"Active: {(new_predictions != 0).sum().item():4d}"
+        )
+
+        written_until = end
+        window_idx += 1
+
+    print(
+        f"\nDone. Generated {len(generated)} frames. "
+        f"Active frames: {(generated != 0).sum().item()} / {len(generated)}"
+    )
+
+    return generated, debug_segments
+
+
+
+@torch.inference_mode()
+def generate_validation_chart(
+    trainer,
+    loader,
+    chart_id=None,
+    context_frames=500,
+    seed_action=None,
+    temperature=None,
+    top_k=None,
+    top_p=None,
+    seed=0,
+    collect_debug=False,
+):
+    model = trainer.model
+    model.eval()
+
+    INPUT_KEYS = [
+        "specs",
+        "beat_phase",
+        "beat_num",
+        "difficulty",
+        "valid_frames",
+    ]
+
+    # =====================================
+    # COLLECT CHART WINDOWS
+    # =====================================
+
+    segments = []
+    full_song_specs = None
+    initial_seed_action = None
+
+    selected_chart = chart_id
+    found = False
+    finished = False
+
+    for batch in loader:
+        for i, cid in enumerate(batch["chart_id"]):
+
+            if selected_chart is None:
+                selected_chart = cid
+
+            if cid != selected_chart:
+                if found:
+                    finished = True
+                    break
+                continue
+
+            found = True
+
+            sample = {
+                k: batch[k][i:i+1]
+                for k in INPUT_KEYS
+            }
+
+            valid_length = int(
+                sample["valid_frames"][0].sum().item()
+            )
+
+            segments.append({
+                "start": int(batch["start_frame"][i]),
+                "sample": sample,
+                "actual": batch["actions_target"][i].cpu(),
+                "valid_length": valid_length,
+            })
+
+            # Initial decoder action from the ground-truth chart.
+            if initial_seed_action is None:
+                initial_seed_action = int(
+                    batch["actions_input"][i, 0].item()
+                )
+
+            # Retrieve full-song audio if provided by the collator.
+            if "global_specs" in batch:
+                global_idx = int(
+                    batch["global_indices"][i].item()
+                )
+
+                full_song_specs = batch["global_specs"][global_idx]
+
+        if finished:
+            break
+
+    if not segments:
+        raise ValueError(f"Chart not found: {selected_chart}")
+
+    segments.sort(key=lambda x: x["start"])
+
+    if segments[0]["start"] != 0:
+        raise ValueError("Validation windows must start at frame 0.")
+
+    segment_length = segments[0]["sample"]["specs"].size(2)
+
+    if not 0 <= context_frames < segment_length:
+        raise ValueError("context_frames must be smaller than segment length.")
+
+    if context_frames != 0 and not hasattr(model, "forward"):
+        raise ValueError("Invalid model.")
+
+    total_frames = max(
+        seg["start"] + seg["valid_length"]
+        for seg in segments
+    )
+
+    print(f"Chart: {selected_chart}")
+    print(f"Windows: {len(segments)}")
+    print(f"Target frames: {total_frames}")
+    print(
+        f"Window size: {segment_length} | "
+        f"Context: {context_frames} | "
+        f"Stride: {segment_length - context_frames}"
+    )
+
+    # Use ground-truth frame 0 as the initial decoder input by default.
+    if seed_action is None:
+        seed_action = initial_seed_action
+
+    # =====================================
+    # PRECOMPUTE GLOBAL CONTEXT
+    # =====================================
+
+    full_global_context = None
+
+    if hasattr(model, "prepare_global_context"):
+
+        if full_song_specs is None:
+            raise ValueError(
+                "Global model requires GlobalAudioCollator "
+                "in the validation DataLoader."
+            )
+
+        device = next(model.parameters()).device
+
+        full_global_context = model.prepare_global_context(
+            global_specs=[full_song_specs],
+            global_indices=torch.tensor([0]),
+            start_frames=torch.tensor([0]),
+            seq_len=full_song_specs.size(1),
+            device=device,
+            dtype=full_song_specs.dtype,
+        )
+
+    # =====================================
+    # GENERATION
+    # =====================================
+
+    generated = torch.empty(total_frames, dtype=torch.long)
+    actual = torch.empty(total_frames, dtype=torch.long)
+
+    debug_segments = []
+
+    written_until = 0
+    window_idx = 0
+
+    for seg in segments:
+
+        # Stop once the entire chart has been generated.
+        if written_until >= total_frames:
+            break
+
+        start = seg["start"]
+        valid_length = seg["valid_length"]
+        seq_len = seg["sample"]["specs"].size(2)
+
+        end = start + valid_length
+
+        # Ensure that windows overlap correctly and don't leave gaps.
+        if start > written_until:
+            raise RuntimeError(
+                f"Gap in validation windows: expected {written_until}, "
+                f"next window starts at {start}."
+            )
+
+        context_len = written_until - start
+
+        # Ignore redundant trailing windows.
+        if context_len >= valid_length:
+            continue
+
+        if context_len > context_frames:
+            raise RuntimeError(
+                "Window overlap exceeds configured context_frames. "
+                "Check stride_frames."
+            )
+
+        # =====================================
+        # PREVIOUS ACTION CONTEXT
+        # =====================================
+
+        if start == 0:
+            prefix_actions = None
+
+        else:
+            # Previously generated actions, plus the preceding action
+            # required by the one-frame teacher-forcing alignment.
+            prefix_actions = generated[
+                start - 1 : written_until
+            ].unsqueeze(0)
+
+            if prefix_actions.size(1) != context_len + 1:
+                raise RuntimeError("Previous action context is incomplete.")
+
+        # =====================================
+        # GLOBAL CONTEXT
+        # =====================================
+
+        generate_kwargs = {}
+
+        if full_global_context is not None:
+
+            global_context = full_global_context[
+                :,
+                start : start + seq_len,
+                :
+            ]
+
+            # Pad the final window if necessary.
+            if global_context.size(1) < seq_len:
+                global_context = torch.nn.functional.pad(
+                    global_context,
+                    (0, 0, 0, seq_len - global_context.size(1))
+                )
+
+            generate_kwargs["global_context"] = global_context
+
+        # =====================================
+        # GENERATE
+        # =====================================
+
+        results = trainer.generate(
+            seg["sample"],
+            seed_action=seed_action,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+            seed=seed if window_idx == 0 else None,
+            prefix_actions=prefix_actions,
+            **generate_kwargs,
+        )
+
+        predictions = results["action_predictions"][0]
+
+        # Remove predictions belonging to the known overlap.
+        new_predictions = predictions[
+            context_len:valid_length
+        ]
+
+        actual_new = seg["actual"][
+            context_len:valid_length
+        ]
+
+        expected_new = end - written_until
+
+        if new_predictions.numel() != expected_new:
+            raise RuntimeError("Unexpected number of new predictions.")
+
+        # Write only newly generated positions.
+        generated[written_until:end] = new_predictions
+        actual[written_until:end] = actual_new
+
+        # =====================================
+        # DEBUG
+        # =====================================
+
+        if collect_debug:
 
             debug_segments.append({
-                "start": start + new_start,
-                "window_start": start,
-                "end": end,
-                "action_inputs": results["action_inputs"][0][new_start:length],
+                "start": written_until + 1,
+                "window_start": start + 1,
+                "end": end + 1,
+                "action_inputs": results["action_inputs"][0][
+                    context_len:valid_length
+                ],
                 "action_predictions": new_predictions,
-                "np_pred": results["np_pred"][0][new_start:length],
-                "ns_logits": results["ns_logits"][0][new_start:length],
-                "actual": new_predictions.clone(),
-                "valid_frames": results["valid_frames"][0][new_start:length],
+                "np_pred": results["np_pred"][0][
+                    context_len:valid_length
+                ],
+                "ns_logits": results["ns_logits"][0][
+                    context_len:valid_length
+                ],
+                "actual": actual_new,
+                "valid_frames": results["valid_frames"][0][
+                    context_len:valid_length
+                ],
             })
 
         print(
             f"Window {start:6d}-{end:6d} | "
             f"Context: {context_len:4d} | "
             f"New: {len(new_predictions):4d} | "
-            f"Active: {(new_predictions != 0).sum().item():4d}"
+            f"Generated active: {(new_predictions != 0).sum().item():4d} | "
+            f"Actual active: {(actual_new != 0).sum().item():4d}"
         )
 
+        written_until = end
+        window_idx += 1
+
+    if written_until != total_frames:
+        raise RuntimeError(
+            f"Chart generation incomplete: "
+            f"{written_until}/{total_frames} frames."
+        )
+
+    # =====================================
+    # SUMMARY
+    # =====================================
+
+    print(f"\nDone. {len(generated)} frames.")
+
     print(
-        f"\nDone. Active frames: "
-        f"{(generated != 0).sum().item()} / {len(generated)}"
+        f"Active frames: generated {(generated != 0).sum().item()} "
+        f"| actual {(actual != 0).sum().item()}"
     )
 
-    return generated, debug_segments
-
-
+    return generated, actual, debug_segments

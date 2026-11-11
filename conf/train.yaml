@@ -1,12 +1,12 @@
 experiment:
-  num_epochs: 102
+  num_epochs: 40
 
   checkpoint_path: checkpoints
   resume_from: notebooks/checkpoints/latest.pt
 
   log_to_wandb: true
   wandb_project: tracer
-  run_name: tracer-1
+  run_name: tracer-global-2
 
 hyperparams:
   learning_rate: 0.0001
@@ -39,4 +39,11 @@ hyperparams:
 
   max_len: 2000
 
-  batch_size: 10
+  batch_size: 6
+
+  global_dim: 128
+  global_tokens: 512
+  global_heads: 4
+  global_num_layers: 2
+  global_ff_dim: 256
+  global_dropout: 0.1
