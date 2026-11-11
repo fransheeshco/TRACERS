@@ -1,12 +1,12 @@
 experiment:
-  num_epochs: 40
+  num_epochs: 20
 
   checkpoint_path: checkpoints
   resume_from: notebooks/checkpoints/latest.pt
 
   log_to_wandb: true
   wandb_project: tracer
-  run_name: tracer-global-2
+  run_name: tracer-np-augment-3
 
 hyperparams:
   learning_rate: 0.0001
