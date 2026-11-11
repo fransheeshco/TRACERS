@@ -101,7 +101,7 @@ class Trainer:
         self.start_epoch = checkpoint["epoch"]
         self.best_val_loss = checkpoint.get("best_val_loss", float("inf"))
 
-        print(f"Loaded {filename} (epoch {self.start_epoch}, "
+        print(f"Loaded (epoch {self.start_epoch}, "
             f"best val loss {self.best_val_loss:.4f})")
 
     def _get_global_model_kwargs(self, batch):
