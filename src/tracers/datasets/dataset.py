@@ -291,6 +291,7 @@ class AutoOsu4KDataset(Dataset):
         song_ids: Optional[Iterable[str]] = None,
         audio_cache_size: int = 8,
         check_on_load: bool = True,
+        original_only: bool = False,
     ):
         self.beatmap_dir = Path(beatmap_dir)
         self.audio_dir = Path(audio_dir)
@@ -331,6 +332,12 @@ class AutoOsu4KDataset(Dataset):
         records: list[ChartRecord] = []
         missing_audio: list[str] = []
         for chart_path in sorted(self.beatmap_dir.glob("*.pt")):
+            # Original AutoOsu chart IDs end in "-4".
+            # Augmented variants have additional suffixes, e.g. "-lr".
+            if original_only:
+                parts = chart_path.stem.split("-")
+                if len(parts) != 3 or parts[-1] != "4":
+                    continue
             song_id = song_id_from_chart_path(chart_path)
             if allowed_song_ids is not None and song_id not in allowed_song_ids:
                 continue
