@@ -1,12 +1,12 @@
 experiment:
   num_epochs: 102
 
-  checkpoint_path: checkpoints
-  resume_from: notebooks/checkpoints/latest.pt
+  checkpoint_path: checkpoints/augmented-4x
+  resume_from: null
 
-  log_to_wandb: true
+  log_to_wandb: false
   wandb_project: tracer
-  run_name: tracer-1
+  run_name: tracer-augmented-4x
 
 hyperparams:
   learning_rate: 0.0001
