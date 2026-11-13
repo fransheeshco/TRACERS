@@ -419,7 +419,7 @@ footer {
         grid-area: config;
         display: grid !important;
         grid-template-columns: 1fr;
-        grid-template-rows: 185px minmax(0, 1fr);
+        grid-template-rows: 175px minmax(0, 1fr);
         gap: 10px;
         min-height: 0;
         margin: 0;
@@ -482,7 +482,7 @@ footer {
     }
 
     #parameters-card {
-        gap: 8px;
+        gap: 12px;
         padding: 12px !important;
     }
 
@@ -503,9 +503,9 @@ footer {
     }
 
     #audio-card > .block:not(.section-heading) {
-        flex: 0 0 58px !important;
-        height: 58px !important;
-        min-height: 58px !important;
+        flex: 0 0 68px !important;
+        height: 68px !important;
+        min-height: 68px !important;
     }
 
     #audio-card > .block:not(.section-heading) .upload-container {
@@ -519,6 +519,7 @@ footer {
         align-items: center;
         justify-content: center;
         gap: 6px;
+        padding-top: 17px;
         font-size: 0;
     }
 
@@ -543,13 +544,17 @@ footer {
     }
 
     #parameters-card > .form {
-        flex: 0 0 61px !important;
-        min-height: 61px !important;
+        flex: 0 0 67px !important;
+        min-height: 67px !important;
+    }
+
+    #parameters-card > .form > .block {
+        overflow: visible !important;
     }
 
     #parameters-card > .row {
-        flex: 0 0 42px !important;
-        min-height: 42px !important;
+        flex: 0 0 38px !important;
+        min-height: 38px !important;
     }
 
     #audio-card .block.padded:not(.section-heading),
@@ -596,8 +601,17 @@ footer {
     }
 
     #parameters-card input[type="range"]::-webkit-slider-thumb {
-        background: var(--tr-pink) !important;
+        width: 22px !important;
+        height: 22px !important;
+        border: 2px solid #C7C3D9 !important;
+        border-radius: 50% !important;
+        background: #F4F3F8 !important;
         box-shadow: none !important;
+    }
+
+    #parameters-card input[type="range"]::-webkit-slider-runnable-track {
+        height: 8px !important;
+        border-radius: 999px !important;
     }
 
     #parameters-card input[type="range"]::-moz-range-progress {
@@ -605,8 +619,11 @@ footer {
     }
 
     #parameters-card input[type="range"]::-moz-range-thumb {
-        background: var(--tr-pink) !important;
-        border-color: var(--tr-pink) !important;
+        width: 22px !important;
+        height: 22px !important;
+        border: 2px solid #C7C3D9 !important;
+        border-radius: 50% !important;
+        background: #F4F3F8 !important;
     }
 
     #timing-fields,
@@ -1268,6 +1285,7 @@ def build_app():
                             chart_output = gr.File(
                                 label="Download JSON",
                                 elem_id="download-json",
+                                visible=False,
                             )
                         chart_json_output = gr.Textbox(
                             label="Generated Chart JSON",
