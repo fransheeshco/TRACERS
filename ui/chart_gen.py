@@ -596,24 +596,74 @@ footer {
     }
 
     #parameters-card input[type="range"] {
-        --slider-color: var(--tr-pink);
-        accent-color: var(--tr-pink) !important;
-        background: linear-gradient(
-            to right,
-            var(--tr-pink) 0 var(--range_progress),
-            var(--tr-button-border) var(--range_progress) 100%
-        ) !important;
+    --slider-color: var(--tr-pink);
+    accent-color: var(--tr-pink) !important;
     }
 
-    #parameters-card input[type="range"]::-webkit-slider-thumb {
-        width: 22px !important;
-        height: 22px !important;
-        border: 2px solid #C7C3D9 !important;
-        border-radius: 50% !important;
-        background: #F4F3F8 !important;
+    /* Remove white border from Live Chart Preview */
+#preview-card .block,
+#preview-card .image-container,
+#preview-card [data-testid="image"] {
+        border: none !important;
         box-shadow: none !important;
     }
 
+    /* Remove white border from Generated Chart JSON */
+    #json-card .block,
+    #generated_chart_json_text {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Make JSON output fill the available card height */
+    #json-card #generated_chart_json_text {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    #json-card #generated_chart_json_text > div {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+    }
+
+    #json-card #generated_chart_json_text textarea {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        height: 100% !important;
+        resize: none !important;
+    }
+    /* Remove JSON borders */
+    #json-card #generated_chart_json_text,
+    #json-card #generated_chart_json_text .block,
+    #json-card #generated_chart_json_text > div,
+    #json-card #generated_chart_json_text textarea {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Copy button matches the card background */
+    #generated_chart_json_text button {
+        background: var(--tr-surface) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        border-radius: 8px !important;
+        box-shadow: none !important;
+    }
+
+    /* White Copy icon */
+    #generated_chart_json_text button svg {
+        color: #FFFFFF !important;
+        stroke: currentColor !important;
+    }
+
+    /* Subtle hover effect */
+    #generated_chart_json_text button:hover {
+        background: var(--tr-button-hover) !important;
+    }
+
+    /* Track */
     #parameters-card input[type="range"]::-webkit-slider-runnable-track {
         height: 8px !important;
         border-radius: 999px !important;
@@ -652,8 +702,10 @@ footer {
 
     #preview-card .image-container,
     #preview-card [data-testid="image"] {
-        min-height: 0 !important;
-        height: 100% !important;
+        min-height: 420px;
+        border: none !important;
+        border-radius: 12px !important;
+        background: var(--tr-canvas) !important;
     }
 
     #preview-card > .block:not(.section-heading) {
@@ -716,6 +768,82 @@ footer {
         font-size: 0.72rem !important;
         line-height: 1.45 !important;
     }
+        /* Restore Live Chart Preview toolbar styling */
+    #preview-card .icon-buttons,
+    #preview-card .icon-button {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    /* Allow the Copy button to remain visible */
+#generated_chart_json_text {
+        position: relative !important;
+        overflow: visible !important;
+    }
+
+    /* Restore Copy button visibility */
+    #generated_chart_json_text button {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: var(--tr-surface) !important;
+        color: var(--tr-text) !important;
+        border: none !important;
+        box-shadow: none !important;
+        z-index: 10 !important;
+    }
+
+    /* White Copy icon */
+    #generated_chart_json_text button svg {
+        color: var(--tr-text) !important;
+        stroke: currentColor !important;
+    }
+
+    /* Restore toolbar buttons */
+    #preview-card .icon-button {
+        align-items: center;
+        justify-content: center;
+        color: var(--tr-text) !important;
+        cursor: pointer;
+    }
+
+    /* Keep only the unwanted white borders removed */
+    #preview-card .image-container,
+    #preview-card [data-testid="image"] {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Hide duplicate JSON label text only */
+    #generated_chart_json_text .label-wrap > span,
+    #generated_chart_json_text [data-testid="block-info"] {
+        display: none !important;
+    }
+
+    /* Preserve the toolbar and Copy button */
+    #generated_chart_json_text .label-wrap {
+        display: flex !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+    }
+
+    /* Copy button matches the dark TRACERS theme */
+    #generated_chart_json_text button {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: var(--tr-surface) !important;
+        color: var(--tr-text) !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* White Copy icon */
+    #generated_chart_json_text button svg {
+        color: var(--tr-text) !important;
+        stroke: currentColor !important;
+    }
 }
 
 @media (max-width: 900px) {
@@ -723,6 +851,7 @@ footer {
         width: min(100% - 28px, 720px);
         padding-top: 22px;
     }
+
 
     #config-grid,
     #output-grid {
@@ -1298,14 +1427,14 @@ def build_app():
                             value="",
                             lines=20,
                             max_lines=40,
-                            show_label=False,
+                            show_label=True,
                             elem_id="generated_chart_json_text",
                             **_copy_button_kwargs(),
                         )
                         status_output = gr.Textbox(
                             label="Status",
                             interactive=False,
-                            visible=False,
+                            visible=True,
                             elem_id="status-output",
                         )
 
