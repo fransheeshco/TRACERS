@@ -67,7 +67,7 @@ class NoteAssets:
     The hold body is stretched from a thin horizontal strip of your body texture.
     """
 
-    def __init__(self, sheet_path, body_path, tap=(0, 2), hold=(0, 1), body_opacity_boost=2.3):
+    def __init__(self, sheet_path, body_path, tap=(7, 5), hold=(0, 1), body_opacity_boost=2.3):
         sheet = Image.open(sheet_path).convert("RGBA")
         self._tap = self._cell(sheet, *tap)
         self._hold = self._cell(sheet, *hold)

@@ -33,7 +33,7 @@ from tracers.pipelines.trainer_factory import build_trainer
 from tracers.project import setup_project
 
 DEFAULT_CHECKPOINT = (
-    PROJECT_ROOT / "notebooks" / "checkpoints" / "tracer_np" / "best.pt"
+    PROJECT_ROOT / "notebooks" / "checkpoints" / "tracer_np" / "best_hope.pt"
 )
 DEFAULT_SEGMENT_FRAMES = 2000
 
@@ -150,6 +150,24 @@ def _sanitize_audio_name(name: str) -> str:
     return "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in cleaned) or "song"
 
 
+def _coerce_optional_int(value, *, allow_zero: bool = False):
+    if value is None or value == "" or str(value).strip().lower() == "none":
+        return None
+    value = int(float(value))
+    if not allow_zero and value <= 0:
+        return None
+    return value
+
+
+def _coerce_optional_float(value, *, allow_zero: bool = False):
+    if value is None or value == "" or str(value).strip().lower() == "none":
+        return None
+    value = float(value)
+    if not allow_zero and value <= 0:
+        return None
+    return value
+
+
 def _prepare_preprocessed_pt(
     upload_path: str | None,
     bpm: float,
@@ -215,6 +233,36 @@ def _render_live_preview(all_actions, total_frames: int, assets: NoteAssets):
     return render_progress(all_actions, assets, total_frames=total_frames)
 
 
+def _read_json_text(path: str | Path) -> str:
+    path = Path(path)
+    if not path.exists():
+        return ""
+    with path.open("r", encoding="utf-8") as handle:
+        return handle.read()
+
+
+def _button_state(text: str, *, disabled: bool = False):
+    if gr is None:
+        return text
+    return gr.update(value=text, interactive=not disabled)
+
+
+def _copy_button_kwargs() -> dict:
+    """Built-in Textbox copy button: `buttons=["copy"]` on Gradio 6, `show_copy_button` before."""
+    if gr is None:
+        return {}
+    params = inspect.signature(gr.Textbox.__init__).parameters
+    if "buttons" in params:
+        return {"buttons": ["copy"]}
+    return {"show_copy_button": True}
+
+
+def _notify_copied():
+    if gr is None:
+        return
+    gr.Info("Chart JSON copied to clipboard", duration=2)
+
+
 def _generate_chart_live(
     *,
     trainer,
@@ -253,7 +301,7 @@ def _generate_chart_live(
     }) if save_debug_csv else None
 
     note_assets = NoteAssets(
-        str(PROJECT_ROOT /  "src/tracers/animations" / "notes_sheet.png"),
+        str(PROJECT_ROOT / "src/tracers/animations" / "notes_sheet.png"),
         str(PROJECT_ROOT / "src/tracers/animations" / "hold_body.png"),
     )
 
@@ -308,15 +356,16 @@ def _generate_chart_live(
             _, _, actions = item
             all_actions.extend(int(a) for a in actions.reshape(-1).tolist())
             preview = _render_live_preview(all_actions, total_frames, note_assets)
-            yield preview, None, f"Generating... {len(all_actions)} frames"
+            yield preview, "", None, f"Generating... {len(all_actions)} frames", _button_state("Generating...", disabled=True)
         elif item[0] == "done":
             _, final_path = item
             final_preview = _render_live_preview(all_actions, total_frames, note_assets)
-            yield final_preview, str(final_path), "Generation complete."
+            chart_text = _read_json_text(final_path)
+            yield final_preview, chart_text, str(final_path), "Generation complete.", _button_state("Generate Chart", disabled=False)
             return
         elif item[0] == "error":
             _, error_message = item
-            yield None, None, f"ERROR: {error_message}"
+            yield None, "", None, f"ERROR: {error_message}", _button_state("Generate Chart", disabled=False)
             return
 
 
@@ -337,7 +386,7 @@ def generate_chart(
 
     file_path = input_file[0] if isinstance(input_file, list) else input_file
     if file_path is None:
-        yield None, None, "ERROR: Please upload an audio file or a preprocessed .pt tensor."
+        yield None, "", None, "ERROR: Please upload an audio file or a preprocessed .pt tensor.", _button_state("Generate Chart", disabled=False)
         return
 
     try:
@@ -354,29 +403,24 @@ def generate_chart(
                 f"Context Frames must be in [0, {DEFAULT_SEGMENT_FRAMES - 1}]."
             )
 
-        if top_k in (None, "", "None"):
+        top_k = _coerce_optional_int(top_k)
+        if top_k is not None and top_k <= 0:
             top_k = None
-        elif int(top_k) <= 0:
-            raise ValueError("Top-K must be a positive integer when specified.")
-        else:
-            top_k = int(top_k)
 
-        if top_p in (None, "", "None"):
+        top_p = _coerce_optional_float(top_p, allow_zero=True)
+        if top_p is not None and top_p <= 0:
             top_p = None
-        elif not (0 < float(top_p) <= 1):
+        elif top_p is not None and not 0 < top_p <= 1:
             raise ValueError("Top-P must be greater than 0 and at most 1 when specified.")
-        else:
-            top_p = float(top_p)
 
-        if temperature not in (None, "", "None"):
-            temperature = float(temperature)
-            if temperature < 0:
-                raise ValueError("Temperature must be non-negative.")
-        else:
-            temperature = None
+        temperature = _coerce_optional_float(temperature, allow_zero=True)
+        if temperature is not None and temperature < 0:
+            raise ValueError("Temperature must be non-negative.")
 
         seed = int(seed)
 
+        # First output is the preview image, so it must not receive a button update.
+        yield None, "", None, "Generating...", _button_state("Generating...", disabled=True)
         yield from _generate_chart_live(
             trainer=trainer_state["trainer"],
             pt_path=pt_path,
@@ -394,7 +438,7 @@ def generate_chart(
             output_root=PROJECT_ROOT / "charts",
         )
     except Exception as exc:
-        yield None, None, f"ERROR: {exc}"
+        yield None, "", None, f"ERROR: {exc}", _button_state("Generate Chart", disabled=False)
 
 
 def build_app():
@@ -418,16 +462,32 @@ def build_app():
             with gr.Column(scale=1):
                 difficulty = gr.Slider(minimum=0, maximum=10, value=5, step=0.1, label="Difficulty")
                 context_frames = gr.Number(value=0, label="Context Frames", precision=0)
-                temperature = gr.Number(value=0.6, label="Temperature", minimum=0, maximum=2)
-                top_k = gr.Number(value=None, label="Top-K", precision=0, minimum=1)
+                temperature = gr.Number(value=None, label="Temperature", minimum=0, maximum=2, precision=3)
+                top_k = gr.Number(value=None, label="Top-K", precision=0, minimum=0)
                 top_p = gr.Number(value=None, label="Top-P", minimum=0, maximum=1, step=0.01)
                 seed = gr.Number(value=0, label="Seed", precision=0)
                 save_debug_csv = gr.Checkbox(value=True, label="Save Debug CSV")
 
         generate_button = gr.Button("Generate Chart")
         preview_output = gr.Image(label="Live Chart Preview", type="pil")
-        chart_output = gr.File(label="Generated Chart JSON")
+        chart_json_output = gr.Textbox(
+            label="Generated Chart JSON",
+            value="",
+            lines=20,
+            max_lines=40,
+            elem_id="generated_chart_json_text",
+            **_copy_button_kwargs(),
+        )
+        chart_output = gr.File(label="Download JSON")
         status_output = gr.Textbox(label="Status", interactive=False)
+
+        # Fires when the user clicks the Textbox's built-in copy button.
+        chart_json_output.copy(
+            fn=_notify_copied,
+            inputs=None,
+            outputs=None,
+            show_progress="hidden",
+        )
 
         generate_button.click(
             fn=generate_chart,
@@ -443,7 +503,7 @@ def build_app():
                 seed,
                 save_debug_csv,
             ],
-            outputs=[preview_output, chart_output, status_output],
+            outputs=[preview_output, chart_json_output, chart_output, status_output, generate_button],
         )
 
     _ensure_model_loaded()
