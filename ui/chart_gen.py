@@ -199,6 +199,11 @@ body,
     line-height: 1.5 !important;
 }
 
+#preview-card .section-heading,
+#json-card .section-heading {
+    border-bottom: 0 !important;
+}
+
 .tracer-card .form,
 .tracer-card .block,
 .tracer-card .wrap,
@@ -1270,6 +1275,7 @@ def build_app():
                         label="Live Chart Preview",
                         type="pil",
                         show_label=False,
+                        buttons=["download", "fullscreen", "share"],
                     )
 
                 with gr.Column(scale=4, elem_id="result-rail"):
