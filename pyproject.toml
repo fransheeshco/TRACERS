@@ -15,7 +15,9 @@ dependencies = [
     "torchaudio>=2.11.1",
     "hydra-core",
     "wandb",
-    "tqdm"
+    "tqdm",
+    "gradio>=4.44",
+    "pillow>=10.0"
 ]
 
 [project.optional-dependencies]

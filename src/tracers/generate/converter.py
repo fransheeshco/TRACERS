@@ -390,6 +390,7 @@ def generate_custom_song(
     seed=0,
     collect_debug=False,
     context_frames=500,
+    on_window=None,
 ):
     data = torch.load(audio_path, map_location="cpu", weights_only=True)
 
@@ -537,6 +538,8 @@ def generate_custom_song(
             )
 
         generated[written_until:end] = new_predictions
+        if on_window is not None:
+            on_window(written_until, new_predictions)
 
         # =====================================
         # DEBUG
