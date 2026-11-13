@@ -36,3 +36,6 @@ wandb/
 
 notebooks/charts/
 autoosu_reference/
+implementation.md
+
+charts/
