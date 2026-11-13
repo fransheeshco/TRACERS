@@ -262,7 +262,7 @@ class Trainer:
                         self.hyperparams, resolve=True,
                     ),
                 },
-                settings=wandb.Settings(console="wrap"),
+                settings=wandb.Settings(console="wrap", console_multipart=True),
             )
 
         try:

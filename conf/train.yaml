@@ -2,11 +2,11 @@ experiment:
   num_epochs: 20
 
   checkpoint_path: checkpoints
-  resume_from: notebooks/checkpoints/best.pt
+  resume_from: notebooks/checkpoints/01488/best.pt
 
   log_to_wandb: true
   wandb_project: tracer
-  run_name: tracer-np-augment-4-lr5e-5
+  run_name: tracer-np-augment-4-lr5e-5-nplm-3
 
 hyperparams:
   learning_rate: 0.00005
@@ -18,7 +18,7 @@ hyperparams:
   ns_fl_gamma: 3.0
   ns_fl_weight: 0.5
 
-  np_loss_multiplier: 7.0
+  np_loss_multiplier: 3.0
 
   bp_emb_dim: 32
   bn_emb_dim: 16
