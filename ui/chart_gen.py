@@ -419,7 +419,7 @@ footer {
         grid-area: config;
         display: grid !important;
         grid-template-columns: 1fr;
-        grid-template-rows: 155px minmax(0, 1fr);
+        grid-template-rows: 185px minmax(0, 1fr);
         gap: 10px;
         min-height: 0;
         margin: 0;
@@ -472,10 +472,23 @@ footer {
     #audio-card,
     #parameters-card,
     #preview-card,
-    #status-card,
+    #json-card {
+        flex-wrap: nowrap !important;
+    }
+
+    #audio-card {
+        gap: 6px;
+        padding: 12px !important;
+    }
+
+    #parameters-card {
+        gap: 8px;
+        padding: 12px !important;
+    }
+
+    #preview-card,
     #json-card {
         gap: 4px;
-        flex-wrap: nowrap !important;
     }
 
     #audio-card .block,
@@ -490,9 +503,9 @@ footer {
     }
 
     #audio-card > .block:not(.section-heading) {
-        flex: 0 0 48px !important;
-        height: 48px !important;
-        min-height: 48px !important;
+        flex: 0 0 58px !important;
+        height: 58px !important;
+        min-height: 58px !important;
     }
 
     #audio-card > .block:not(.section-heading) .upload-container {
@@ -525,8 +538,8 @@ footer {
     }
 
     #timing-fields {
-        flex: 0 0 39px !important;
-        min-height: 39px !important;
+        flex: 0 0 43px !important;
+        min-height: 43px !important;
     }
 
     #parameters-card > .form {
@@ -535,13 +548,13 @@ footer {
     }
 
     #parameters-card > .row {
-        flex: 0 0 39px !important;
-        min-height: 39px !important;
+        flex: 0 0 42px !important;
+        min-height: 42px !important;
     }
 
     #audio-card .block.padded:not(.section-heading),
     #parameters-card .block.padded:not(.section-heading) {
-        padding: 3px 7px !important;
+        padding: 4px 8px !important;
     }
 
     #audio-card label.container,
@@ -573,6 +586,8 @@ footer {
     }
 
     #parameters-card input[type="range"] {
+        --slider-color: var(--tr-pink);
+        accent-color: var(--tr-pink) !important;
         background: linear-gradient(
             to right,
             var(--tr-pink) 0 var(--range_progress),
@@ -582,6 +597,16 @@ footer {
 
     #parameters-card input[type="range"]::-webkit-slider-thumb {
         background: var(--tr-pink) !important;
+        box-shadow: none !important;
+    }
+
+    #parameters-card input[type="range"]::-moz-range-progress {
+        background: var(--tr-pink) !important;
+    }
+
+    #parameters-card input[type="range"]::-moz-range-thumb {
+        background: var(--tr-pink) !important;
+        border-color: var(--tr-pink) !important;
     }
 
     #timing-fields,
@@ -616,45 +641,49 @@ footer {
     }
 
     #result-rail {
-        display: grid !important;
-        grid-template-rows: 190px minmax(0, 1fr);
-        gap: 12px;
+        display: block !important;
         height: 100%;
         min-height: 0;
         overflow: hidden;
     }
 
-    #status-card,
     #json-card {
+        display: flex !important;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
         min-height: 0;
         overflow: hidden;
     }
 
-    #status-actions {
+    #json-toolbar {
         flex-wrap: nowrap !important;
-        min-height: 0;
-        align-items: stretch;
-    }
-
-    #status-output {
-        min-width: 0;
-    }
-
-    #status-output textarea {
-        min-height: 52px !important;
-        height: 52px !important;
-        font-size: 0.72rem !important;
-        line-height: 1.35 !important;
+        flex: 0 0 42px !important;
+        min-height: 42px !important;
+        align-items: center;
+        gap: 8px;
     }
 
     #download-json {
-        min-width: 110px;
-        margin-top: 10px;
+        flex: 0 0 132px !important;
+        width: 132px;
+        min-width: 132px;
+        height: 38px;
+        min-height: 38px !important;
+        margin: 0;
+        overflow: hidden;
     }
 
-    #json-card > :last-child,
+    #download-json .empty,
+    #download-json [data-testid="file"] {
+        min-height: 36px !important;
+        height: 36px !important;
+        padding: 3px 7px !important;
+    }
+
     #generated_chart_json_text,
     #generated_chart_json_text > div {
+        flex: 1 1 auto !important;
         min-height: 0 !important;
         height: 100% !important;
     }
@@ -1228,32 +1257,18 @@ def build_app():
 
                 with gr.Column(scale=4, elem_id="result-rail"):
                     with gr.Column(
-                        elem_id="status-card",
+                        elem_id="json-card",
                         elem_classes=["tracer-card"],
                     ):
-                        gr.Markdown(
-                            "## Generation status\nTrack progress and download the completed chart.",
-                            elem_classes=["section-heading"],
-                        )
-                        with gr.Row(elem_id="status-actions"):
-                            status_output = gr.Textbox(
-                                label="Status",
-                                interactive=False,
-                                elem_id="status-output",
+                        with gr.Row(elem_id="json-toolbar"):
+                            gr.Markdown(
+                                "## Generated chart JSON\nReview or copy the final chart payload.",
+                                elem_classes=["section-heading"],
                             )
                             chart_output = gr.File(
                                 label="Download JSON",
                                 elem_id="download-json",
                             )
-
-                    with gr.Column(
-                        elem_id="json-card",
-                        elem_classes=["tracer-card"],
-                    ):
-                        gr.Markdown(
-                            "## Generated chart JSON\nReview or copy the final chart payload.",
-                            elem_classes=["section-heading"],
-                        )
                         chart_json_output = gr.Textbox(
                             label="Generated Chart JSON",
                             value="",
@@ -1262,6 +1277,12 @@ def build_app():
                             show_label=False,
                             elem_id="generated_chart_json_text",
                             **_copy_button_kwargs(),
+                        )
+                        status_output = gr.Textbox(
+                            label="Status",
+                            interactive=False,
+                            visible=False,
+                            elem_id="status-output",
                         )
 
         # Fires when the user clicks the Textbox's built-in copy button.
