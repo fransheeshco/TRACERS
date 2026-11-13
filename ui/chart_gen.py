@@ -360,6 +360,313 @@ body,
     background: var(--tr-button-hover);
 }
 
+footer {
+    display: none !important;
+}
+
+@media (min-width: 901px) and (min-height: 620px) {
+    body,
+    .gradio-container {
+        height: 100dvh;
+        overflow: hidden !important;
+    }
+
+    #tracer-shell {
+        display: grid !important;
+        grid-template-columns: minmax(410px, 0.9fr) minmax(0, 2.1fr);
+        grid-template-rows: 56px minmax(0, 1fr) 46px;
+        grid-template-areas:
+            "header header"
+            "config output"
+            "action output";
+        gap: 12px 16px;
+        width: min(1600px, calc(100% - 24px));
+        height: calc(100dvh - 32px);
+        padding: 10px 0;
+        overflow: hidden;
+    }
+
+    #tracer-header {
+        grid-area: header;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        column-gap: 20px;
+        min-height: 0;
+        padding: 0 0 8px !important;
+    }
+
+    .tracer-mark {
+        width: 26px;
+        height: 26px;
+        flex-basis: 26px;
+    }
+
+    .tracer-title {
+        font-size: 1.42rem;
+    }
+
+    .tracer-subtitle {
+        align-self: center;
+        max-width: none;
+        margin: 0;
+        font-size: 0.8rem;
+        line-height: 1.35;
+        text-align: right;
+    }
+
+    #config-grid {
+        grid-area: config;
+        display: grid !important;
+        grid-template-columns: 1fr;
+        grid-template-rows: 155px minmax(0, 1fr);
+        gap: 10px;
+        min-height: 0;
+        margin: 0;
+        overflow: hidden;
+    }
+
+    #audio-card,
+    #parameters-card {
+        width: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    #generate-chart-button {
+        grid-area: action;
+        min-height: 46px;
+        margin: 0 !important;
+        border-radius: 10px !important;
+    }
+
+    #output-grid {
+        grid-area: output;
+        display: grid !important;
+        grid-template-columns: minmax(0, 1.8fr) minmax(300px, 0.75fr);
+        gap: 12px;
+        min-height: 0;
+        margin: 0;
+        overflow: hidden;
+    }
+
+    .tracer-card {
+        padding: 10px !important;
+        border-radius: 13px !important;
+    }
+
+    .section-heading {
+        margin: 0 0 5px !important;
+        padding: 0 0 5px !important;
+    }
+
+    .section-heading h2 {
+        margin: 0 !important;
+        font-size: 0.92rem !important;
+    }
+
+    .section-heading p {
+        display: none;
+    }
+
+    #audio-card,
+    #parameters-card,
+    #preview-card,
+    #status-card,
+    #json-card {
+        gap: 4px;
+        flex-wrap: nowrap !important;
+    }
+
+    #audio-card .block,
+    #parameters-card .block {
+        min-height: 0 !important;
+    }
+
+    #audio-card .form,
+    #parameters-card .form,
+    #status-actions .form {
+        min-width: 0 !important;
+    }
+
+    #audio-card > .block:not(.section-heading) {
+        flex: 0 0 48px !important;
+        height: 48px !important;
+        min-height: 48px !important;
+    }
+
+    #audio-card > .block:not(.section-heading) .upload-container {
+        height: 100% !important;
+        min-height: 0 !important;
+    }
+
+    #audio-card [data-testid="upload-text"] {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 0;
+    }
+
+    #audio-card [data-testid="upload-text"]::after {
+        content: "Drop or choose audio / .pt";
+        color: var(--tr-secondary-alt);
+        font-size: 0.76rem;
+    }
+
+    #audio-card [data-testid="upload-icon"] {
+        width: 18px;
+        height: 18px;
+    }
+
+    #audio-card [data-testid="upload-text"] .or {
+        display: none;
+    }
+
+    #timing-fields {
+        flex: 0 0 39px !important;
+        min-height: 39px !important;
+    }
+
+    #parameters-card > .form {
+        flex: 0 0 61px !important;
+        min-height: 61px !important;
+    }
+
+    #parameters-card > .row {
+        flex: 0 0 39px !important;
+        min-height: 39px !important;
+    }
+
+    #audio-card .block.padded:not(.section-heading),
+    #parameters-card .block.padded:not(.section-heading) {
+        padding: 3px 7px !important;
+    }
+
+    #audio-card label.container,
+    #parameters-card label.container {
+        display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 7px;
+        height: 100%;
+    }
+
+    #audio-card [data-testid="block-info"],
+    #parameters-card [data-testid="block-info"] {
+        margin: 0 !important;
+        font-size: 0.7rem !important;
+        white-space: nowrap;
+    }
+
+    #audio-card input,
+    #parameters-card input {
+        min-height: 28px !important;
+        padding-top: 3px !important;
+        padding-bottom: 3px !important;
+    }
+
+    #audio-card .upload-container,
+    #audio-card [data-testid="file-upload"] {
+        min-height: 0 !important;
+    }
+
+    #parameters-card input[type="range"] {
+        background: linear-gradient(
+            to right,
+            var(--tr-pink) 0 var(--range_progress),
+            var(--tr-button-border) var(--range_progress) 100%
+        ) !important;
+    }
+
+    #parameters-card input[type="range"]::-webkit-slider-thumb {
+        background: var(--tr-pink) !important;
+    }
+
+    #timing-fields,
+    #seed-options,
+    #status-actions {
+        gap: 8px;
+    }
+
+    #seed-options > :last-child {
+        align-self: end;
+        min-height: 38px;
+    }
+
+    #preview-card {
+        display: flex !important;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    #preview-card .image-container,
+    #preview-card [data-testid="image"] {
+        min-height: 0 !important;
+        height: 100% !important;
+    }
+
+    #preview-card > .block:not(.section-heading) {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
+
+    #result-rail {
+        display: grid !important;
+        grid-template-rows: 190px minmax(0, 1fr);
+        gap: 12px;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    #status-card,
+    #json-card {
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    #status-actions {
+        flex-wrap: nowrap !important;
+        min-height: 0;
+        align-items: stretch;
+    }
+
+    #status-output {
+        min-width: 0;
+    }
+
+    #status-output textarea {
+        min-height: 52px !important;
+        height: 52px !important;
+        font-size: 0.72rem !important;
+        line-height: 1.35 !important;
+    }
+
+    #download-json {
+        min-width: 110px;
+        margin-top: 10px;
+    }
+
+    #json-card > :last-child,
+    #generated_chart_json_text,
+    #generated_chart_json_text > div {
+        min-height: 0 !important;
+        height: 100% !important;
+    }
+
+    #generated_chart_json_text textarea {
+        min-height: 0 !important;
+        height: 100% !important;
+        font-size: 0.72rem !important;
+        line-height: 1.45 !important;
+    }
+}
+
 @media (max-width: 900px) {
     #tracer-shell {
         width: min(100% - 28px, 720px);
@@ -830,7 +1137,11 @@ def build_app():
             )
 
             with gr.Row(elem_id="config-grid"):
-                with gr.Column(scale=5, elem_classes=["tracer-card"]):
+                with gr.Column(
+                    scale=5,
+                    elem_id="audio-card",
+                    elem_classes=["tracer-card"],
+                ):
                     gr.Markdown(
                         "## Audio & timing\nChoose a source and align its tempo before generation.",
                         elem_classes=["section-heading"],
@@ -840,10 +1151,15 @@ def build_app():
                         file_types=[".mp3", ".wav", ".flac", ".ogg", ".pt"],
                         type="filepath",
                     )
-                    bpm = gr.Number(value=120, label="BPM", minimum=1)
-                    offset_ms = gr.Number(value=0, label="Offset (ms)")
+                    with gr.Row(elem_id="timing-fields"):
+                        bpm = gr.Number(value=120, label="BPM", minimum=1)
+                        offset_ms = gr.Number(value=0, label="Offset (ms)")
 
-                with gr.Column(scale=7, elem_classes=["tracer-card"]):
+                with gr.Column(
+                    scale=7,
+                    elem_id="parameters-card",
+                    elem_classes=["tracer-card"],
+                ):
                     gr.Markdown(
                         "## Generation parameters\nTune chart density, sampling behavior, and reproducibility.",
                         elem_classes=["section-heading"],
@@ -882,11 +1198,12 @@ def build_app():
                             maximum=1,
                             step=0.01,
                         )
-                    seed = gr.Number(value=0, label="Seed", precision=0)
-                    save_debug_csv = gr.Checkbox(
-                        value=True,
-                        label="Save Debug CSV",
-                    )
+                    with gr.Row(elem_id="seed-options"):
+                        seed = gr.Number(value=0, label="Seed", precision=0)
+                        save_debug_csv = gr.Checkbox(
+                            value=True,
+                            label="Save Debug CSV",
+                        )
 
             generate_button = gr.Button(
                 "Generate Chart",
@@ -918,15 +1235,16 @@ def build_app():
                             "## Generation status\nTrack progress and download the completed chart.",
                             elem_classes=["section-heading"],
                         )
-                        status_output = gr.Textbox(
-                            label="Status",
-                            interactive=False,
-                            elem_id="status-output",
-                        )
-                        chart_output = gr.File(
-                            label="Download JSON",
-                            elem_id="download-json",
-                        )
+                        with gr.Row(elem_id="status-actions"):
+                            status_output = gr.Textbox(
+                                label="Status",
+                                interactive=False,
+                                elem_id="status-output",
+                            )
+                            chart_output = gr.File(
+                                label="Download JSON",
+                                elem_id="download-json",
+                            )
 
                     with gr.Column(
                         elem_id="json-card",
