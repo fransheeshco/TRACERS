@@ -41,6 +41,374 @@ MODEL_STATE: dict | None = None
 MODEL_LOCK = threading.Lock()
 
 
+APP_CSS = r"""
+:root {
+    --tr-canvas: #14131A;
+    --tr-surface: #1D1B26;
+    --tr-skeleton: #232030;
+    --tr-button: #262333;
+    --tr-active: #2B273A;
+    --tr-button-hover: #312D42;
+    --tr-header-divider: #262233;
+    --tr-divider: #2B2738;
+    --tr-border: #2E2A3D;
+    --tr-button-border: #353047;
+    --tr-switch-border: #38334A;
+    --tr-input-hover: #423D57;
+    --tr-pink: #FF66AA;
+    --tr-pink-hover: #FF7DB6;
+    --tr-pink-pressed: #EB5297;
+    --tr-pink-text: #FF7EB8;
+    --tr-download: #FF8DC0;
+    --tr-cyan: #38BDF8;
+    --tr-text: #F4F3F8;
+    --tr-label: #E5E3F0;
+    --tr-option: #C7C3D9;
+    --tr-status: #B8B4CC;
+    --tr-secondary: #A6A2BA;
+    --tr-secondary-alt: #A29DB8;
+    --tr-subtitle: #9E99B3;
+    --tr-helper: #8E89A6;
+    --tr-helper-alt: #8B86A3;
+    --tr-file-meta: #837E99;
+    --tr-muted: #6E6A85;
+    --tr-placeholder: #65607A;
+    --tr-line-number: #58536D;
+    --tr-success: #34D399;
+    --tr-error: #F87171;
+    --tr-error-text: #FCA5A5;
+    --tr-json-key: #7DD3FC;
+    --tr-json-string: #F9A8D4;
+    --tr-json-boolean: #6EE7B7;
+    --tr-json-number: #FCD34D;
+    --tr-json-null: #A78BFA;
+    --tr-json-punctuation: #7A7591;
+    color-scheme: dark;
+}
+
+body,
+.gradio-container {
+    background: var(--tr-canvas) !important;
+    color: var(--tr-text) !important;
+}
+
+.gradio-container {
+    max-width: none !important;
+    min-height: 100vh;
+    padding: 0 !important;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif !important;
+}
+
+#tracer-shell {
+    width: min(1480px, calc(100% - 48px));
+    margin: 0 auto;
+    padding: 32px 0 56px;
+}
+
+#tracer-header {
+    margin: 0 !important;
+    padding: 0 0 26px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--tr-header-divider) !important;
+    background: transparent !important;
+}
+
+.tracer-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.tracer-mark {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    border: 3px solid var(--tr-pink);
+    border-radius: 999px;
+}
+
+.tracer-mark::before {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border: 3px solid var(--tr-cyan);
+    border-radius: inherit;
+}
+
+.tracer-mark::after {
+    content: "";
+    position: absolute;
+    inset: 11px;
+    background: var(--tr-text);
+    border-radius: inherit;
+}
+
+.tracer-title {
+    margin: 0;
+    color: var(--tr-text);
+    font-size: clamp(1.45rem, 2.4vw, 2rem);
+    font-weight: 720;
+    letter-spacing: -0.035em;
+}
+
+.tracer-subtitle {
+    max-width: 700px;
+    margin: 6px 0 0 44px;
+    color: var(--tr-subtitle);
+    font-size: 0.94rem;
+    line-height: 1.55;
+}
+
+#config-grid,
+#output-grid {
+    align-items: stretch;
+    gap: 20px;
+    margin-top: 24px;
+}
+
+.tracer-card {
+    min-width: 0 !important;
+    padding: 24px !important;
+    border: 1px solid var(--tr-border) !important;
+    border-radius: 16px !important;
+    background: var(--tr-surface) !important;
+    box-shadow: none !important;
+}
+
+.section-heading {
+    margin: 0 0 20px !important;
+    padding: 0 0 18px !important;
+    border-bottom: 1px solid var(--tr-divider) !important;
+    background: transparent !important;
+}
+
+.section-heading h2 {
+    margin: 0 0 5px !important;
+    color: var(--tr-text) !important;
+    font-size: 1.08rem !important;
+    font-weight: 680 !important;
+    letter-spacing: -0.015em;
+}
+
+.section-heading p {
+    margin: 0 !important;
+    color: var(--tr-helper) !important;
+    font-size: 0.86rem !important;
+    line-height: 1.5 !important;
+}
+
+.tracer-card .form,
+.tracer-card .block,
+.tracer-card .wrap,
+.tracer-card label,
+.tracer-card fieldset {
+    background: transparent;
+}
+
+.tracer-card label > span,
+.tracer-card .label-wrap span,
+.tracer-card legend,
+.tracer-card .label {
+    color: var(--tr-label) !important;
+    font-weight: 560 !important;
+}
+
+.tracer-card input,
+.tracer-card textarea,
+.tracer-card select,
+#generated_chart_json_text textarea,
+#status-output textarea {
+    color: var(--tr-text) !important;
+    border-color: var(--tr-border) !important;
+    background: var(--tr-canvas) !important;
+    box-shadow: none !important;
+}
+
+.tracer-card input:hover,
+.tracer-card textarea:hover,
+.tracer-card select:hover,
+.tracer-card input:focus,
+.tracer-card textarea:focus,
+.tracer-card select:focus {
+    border-color: var(--tr-input-hover) !important;
+}
+
+.tracer-card input:focus-visible,
+.tracer-card textarea:focus-visible,
+.tracer-card button:focus-visible,
+#generate-chart-button:focus-visible {
+    outline: 2px solid var(--tr-cyan) !important;
+    outline-offset: 2px !important;
+}
+
+.tracer-card input::placeholder,
+.tracer-card textarea::placeholder {
+    color: var(--tr-placeholder) !important;
+}
+
+.tracer-card input[type="range"],
+.tracer-card input[type="checkbox"] {
+    accent-color: var(--tr-pink) !important;
+}
+
+#generate-chart-button {
+    min-height: 52px;
+    margin-top: 20px !important;
+    color: #14131A !important;
+    border: 1px solid var(--tr-pink) !important;
+    border-radius: 12px !important;
+    background: var(--tr-pink) !important;
+    font-size: 1rem !important;
+    font-weight: 720 !important;
+    box-shadow: none !important;
+    transition: background-color 140ms ease, border-color 140ms ease,
+        transform 140ms ease;
+}
+
+#generate-chart-button:hover {
+    border-color: var(--tr-pink-hover) !important;
+    background: var(--tr-pink-hover) !important;
+}
+
+#generate-chart-button:active {
+    border-color: var(--tr-pink-pressed) !important;
+    background: var(--tr-pink-pressed) !important;
+    transform: translateY(1px);
+}
+
+#generate-chart-button:disabled {
+    color: var(--tr-status) !important;
+    border-color: var(--tr-button-border) !important;
+    background: var(--tr-button) !important;
+}
+
+#preview-card {
+    overflow: hidden;
+}
+
+#preview-card .image-container,
+#preview-card [data-testid="image"] {
+    min-height: 420px;
+    border: 1px solid var(--tr-border) !important;
+    border-radius: 12px !important;
+    background: var(--tr-canvas) !important;
+}
+
+#preview-card img {
+    width: 100%;
+    object-fit: contain;
+}
+
+#result-rail {
+    gap: 20px;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+
+#status-card,
+#json-card {
+    width: 100%;
+}
+
+#status-output,
+#download-json {
+    margin-top: 10px;
+}
+
+#status-output textarea {
+    min-height: 74px !important;
+    color: var(--tr-status) !important;
+    resize: none;
+}
+
+#download-json button,
+#generated_chart_json_text button {
+    color: var(--tr-download) !important;
+    border: 1px solid rgba(255, 102, 170, 0.32) !important;
+    background: rgba(255, 102, 170, 0.16) !important;
+}
+
+#download-json button:hover,
+#generated_chart_json_text button:hover {
+    background: rgba(255, 102, 170, 0.24) !important;
+}
+
+#generated_chart_json_text textarea {
+    min-height: 360px !important;
+    color: var(--tr-status) !important;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace !important;
+    font-size: 0.82rem !important;
+    line-height: 1.65 !important;
+}
+
+.tracer-card .file-preview,
+.tracer-card [data-testid="file"] {
+    border-color: var(--tr-border) !important;
+    background: var(--tr-canvas) !important;
+}
+
+.tracer-card button:not(#generate-chart-button) {
+    color: var(--tr-label);
+    border-color: var(--tr-button-border);
+    background: var(--tr-button);
+}
+
+.tracer-card button:not(#generate-chart-button):hover {
+    background: var(--tr-button-hover);
+}
+
+@media (max-width: 900px) {
+    #tracer-shell {
+        width: min(100% - 28px, 720px);
+        padding-top: 22px;
+    }
+
+    #config-grid,
+    #output-grid {
+        flex-direction: column;
+    }
+
+    .tracer-card {
+        padding: 20px !important;
+    }
+
+    #preview-card .image-container,
+    #preview-card [data-testid="image"] {
+        min-height: 300px;
+    }
+}
+
+@media (max-width: 520px) {
+    #tracer-shell {
+        width: min(100% - 20px, 480px);
+    }
+
+    .tracer-subtitle {
+        margin-left: 0;
+    }
+
+    .tracer-card {
+        padding: 16px !important;
+        border-radius: 13px !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+"""
+
+
 def _format_tag(value):
     if value is None:
         return "none"
@@ -445,41 +813,138 @@ def build_app():
     if gr is None:
         raise RuntimeError(f"Gradio is not installed: {GRADIO_IMPORT_ERROR}")
 
-    with gr.Blocks(title="Tracer Chart Generator") as app:
-        gr.Markdown("# Tracer Chart Generator")
+    with gr.Blocks(title="Tracer Chart Generator", css=APP_CSS) as app:
+        with gr.Column(elem_id="tracer-shell"):
+            gr.Markdown(
+                """
+                <div class="tracer-brand">
+                    <span class="tracer-mark" aria-hidden="true"></span>
+                    <h1 class="tracer-title">Tracer Chart Generator</h1>
+                </div>
+                <p class="tracer-subtitle">
+                    Transform audio or preprocessed tensors into a playable rhythm chart,
+                    then inspect the live render and export the generated JSON.
+                </p>
+                """,
+                elem_id="tracer-header",
+            )
 
-        with gr.Row():
-            with gr.Column(scale=1):
-                input_file = gr.File(
-                    label="Audio / Preprocessed .pt",
-                    file_types=[".mp3", ".wav", ".flac", ".ogg", ".pt"],
-                    type="filepath",
-                )
+            with gr.Row(elem_id="config-grid"):
+                with gr.Column(scale=5, elem_classes=["tracer-card"]):
+                    gr.Markdown(
+                        "## Audio & timing\nChoose a source and align its tempo before generation.",
+                        elem_classes=["section-heading"],
+                    )
+                    input_file = gr.File(
+                        label="Audio / Preprocessed .pt",
+                        file_types=[".mp3", ".wav", ".flac", ".ogg", ".pt"],
+                        type="filepath",
+                    )
+                    bpm = gr.Number(value=120, label="BPM", minimum=1)
+                    offset_ms = gr.Number(value=0, label="Offset (ms)")
 
-                bpm = gr.Number(value=120, label="BPM", minimum=1)
-                offset_ms = gr.Number(value=0, label="Offset (ms)")
+                with gr.Column(scale=7, elem_classes=["tracer-card"]):
+                    gr.Markdown(
+                        "## Generation parameters\nTune chart density, sampling behavior, and reproducibility.",
+                        elem_classes=["section-heading"],
+                    )
+                    difficulty = gr.Slider(
+                        minimum=0,
+                        maximum=10,
+                        value=5,
+                        step=0.1,
+                        label="Difficulty",
+                    )
+                    with gr.Row():
+                        context_frames = gr.Number(
+                            value=0,
+                            label="Context Frames",
+                            precision=0,
+                        )
+                        temperature = gr.Number(
+                            value=None,
+                            label="Temperature",
+                            minimum=0,
+                            maximum=2,
+                            precision=3,
+                        )
+                    with gr.Row():
+                        top_k = gr.Number(
+                            value=None,
+                            label="Top-K",
+                            precision=0,
+                            minimum=0,
+                        )
+                        top_p = gr.Number(
+                            value=None,
+                            label="Top-P",
+                            minimum=0,
+                            maximum=1,
+                            step=0.01,
+                        )
+                    seed = gr.Number(value=0, label="Seed", precision=0)
+                    save_debug_csv = gr.Checkbox(
+                        value=True,
+                        label="Save Debug CSV",
+                    )
 
-            with gr.Column(scale=1):
-                difficulty = gr.Slider(minimum=0, maximum=10, value=5, step=0.1, label="Difficulty")
-                context_frames = gr.Number(value=0, label="Context Frames", precision=0)
-                temperature = gr.Number(value=None, label="Temperature", minimum=0, maximum=2, precision=3)
-                top_k = gr.Number(value=None, label="Top-K", precision=0, minimum=0)
-                top_p = gr.Number(value=None, label="Top-P", minimum=0, maximum=1, step=0.01)
-                seed = gr.Number(value=0, label="Seed", precision=0)
-                save_debug_csv = gr.Checkbox(value=True, label="Save Debug CSV")
+            generate_button = gr.Button(
+                "Generate Chart",
+                elem_id="generate-chart-button",
+            )
 
-        generate_button = gr.Button("Generate Chart")
-        preview_output = gr.Image(label="Live Chart Preview", type="pil")
-        chart_json_output = gr.Textbox(
-            label="Generated Chart JSON",
-            value="",
-            lines=20,
-            max_lines=40,
-            elem_id="generated_chart_json_text",
-            **_copy_button_kwargs(),
-        )
-        chart_output = gr.File(label="Download JSON")
-        status_output = gr.Textbox(label="Status", interactive=False)
+            with gr.Row(elem_id="output-grid"):
+                with gr.Column(
+                    scale=8,
+                    elem_id="preview-card",
+                    elem_classes=["tracer-card"],
+                ):
+                    gr.Markdown(
+                        "## Live chart preview\nThe chart render updates as generation progresses.",
+                        elem_classes=["section-heading"],
+                    )
+                    preview_output = gr.Image(
+                        label="Live Chart Preview",
+                        type="pil",
+                        show_label=False,
+                    )
+
+                with gr.Column(scale=4, elem_id="result-rail"):
+                    with gr.Column(
+                        elem_id="status-card",
+                        elem_classes=["tracer-card"],
+                    ):
+                        gr.Markdown(
+                            "## Generation status\nTrack progress and download the completed chart.",
+                            elem_classes=["section-heading"],
+                        )
+                        status_output = gr.Textbox(
+                            label="Status",
+                            interactive=False,
+                            elem_id="status-output",
+                        )
+                        chart_output = gr.File(
+                            label="Download JSON",
+                            elem_id="download-json",
+                        )
+
+                    with gr.Column(
+                        elem_id="json-card",
+                        elem_classes=["tracer-card"],
+                    ):
+                        gr.Markdown(
+                            "## Generated chart JSON\nReview or copy the final chart payload.",
+                            elem_classes=["section-heading"],
+                        )
+                        chart_json_output = gr.Textbox(
+                            label="Generated Chart JSON",
+                            value="",
+                            lines=20,
+                            max_lines=40,
+                            show_label=False,
+                            elem_id="generated_chart_json_text",
+                            **_copy_button_kwargs(),
+                        )
 
         # Fires when the user clicks the Textbox's built-in copy button.
         chart_json_output.copy(
