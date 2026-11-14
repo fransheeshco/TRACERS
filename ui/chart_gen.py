@@ -33,7 +33,7 @@ from tracers.pipelines.trainer_factory import build_trainer
 from tracers.project import setup_project
 
 DEFAULT_CHECKPOINT = (
-    PROJECT_ROOT / "notebooks" / "checkpoints" / "tracer_np" / "best_hope.pt"
+    PROJECT_ROOT / "notebooks" / "checkpoints" / "tracer_np" / "best.pt"
 )
 DEFAULT_SEGMENT_FRAMES = 2000
 
@@ -353,6 +353,24 @@ body,
 .tracer-card [data-testid="file"] {
     border-color: var(--tr-border) !important;
     background: var(--tr-canvas) !important;
+    color: var(--tr-text) !important;
+}
+
+#audio-card .file-preview,
+#audio-card .file-preview-holder,
+#audio-card .file-preview td,
+#audio-card .file-preview tr,
+#audio-card [data-testid="file"],
+#audio-card [data-testid="file"] * {
+    color: var(--tr-text) !important;
+    background: transparent !important;
+}
+
+#audio-card .file-preview a,
+#audio-card .file-preview button,
+#audio-card [data-testid="file"] a,
+#audio-card [data-testid="file"] button {
+    color: var(--tr-download) !important;
 }
 
 .tracer-card button:not(#generate-chart-button) {
@@ -516,6 +534,18 @@ footer {
     #audio-card > .block:not(.section-heading) .upload-container {
         height: 100% !important;
         min-height: 0 !important;
+    }
+
+    #audio-card .file-preview-holder {
+        max-height: 100px !important;
+        overflow-y: auto !important;
+    }
+
+    #audio-card .file-preview td {
+        padding: 4px 8px !important;
+        font-size: 0.78rem !important;
+        white-space: normal !important;
+        word-break: break-word !important;
     }
 
     #audio-card [data-testid="upload-text"] {
@@ -715,7 +745,9 @@ footer {
     }
 
     #result-rail {
-        display: block !important;
+        display: flex !important;
+        flex-direction: column;
+        gap: 12px;
         height: 100%;
         min-height: 0;
         overflow: hidden;
@@ -724,10 +756,24 @@ footer {
     #json-card {
         display: flex !important;
         flex-direction: column;
+        flex: 1 1 auto;
         width: 100%;
-        height: 100%;
+        height: auto;
         min-height: 0;
         overflow: hidden;
+    }
+
+    #status-card {
+        flex: 0 0 auto;
+        width: 100%;
+    }
+
+    #status-output {
+        margin-top: 0;
+    }
+
+    #status-output textarea {
+        min-height: 52px !important;
     }
 
     #json-toolbar {
@@ -1328,6 +1374,7 @@ def build_app():
                     )
                     input_file = gr.File(
                         label="Audio / Preprocessed .pt",
+                        show_label=False,
                         file_types=[".mp3", ".wav", ".flac", ".ogg", ".pt"],
                         type="filepath",
                     )
@@ -1404,6 +1451,7 @@ def build_app():
                         label="Live Chart Preview",
                         type="pil",
                         show_label=False,
+                        height=783,
                         buttons=["download", "fullscreen", "share"],
                     )
 
@@ -1431,6 +1479,11 @@ def build_app():
                             elem_id="generated_chart_json_text",
                             **_copy_button_kwargs(),
                         )
+
+                    with gr.Column(
+                        elem_id="status-card",
+                        elem_classes=["tracer-card"],
+                    ):
                         status_output = gr.Textbox(
                             label="Status",
                             interactive=False,

@@ -22,6 +22,10 @@ FRAME_MS = 10
 CELL_W, CELL_H = 310, 122
 ROW_Y0, ROW_PITCH = 50, 122
 
+# Column layout: time-axis gutter on the left, small right pad. Used to fit the chart to a target size.
+AXIS_W, COL_PAD = 44, 10
+HEAD_H = 58
+
 
 @dataclass
 class Note:
@@ -115,10 +119,10 @@ def _paste(layer: Image.Image, sprite: Image.Image, x: int, y: int) -> None:
 
 
 def _render_column(notes, t_lo, t_hi, front_ms, assets, *, lane_w, px_per_s,
-                   hold_w_ratio, note_w_ratio, axis_w=44, tick_ms=2000):
+                   hold_w_ratio, note_w_ratio, axis_w=AXIS_W, tick_ms=2000):
     """One vertical strip of the chart covering [t_lo, t_hi] ms. Older at the bottom, newer on top."""
     h = int((t_hi - t_lo) / 1000.0 * px_per_s)
-    W = axis_w + 4 * lane_w + 10
+    W = axis_w + 4 * lane_w + COL_PAD
 
     def y_of(t_ms):
         return (t_hi - t_ms) / 1000.0 * px_per_s
@@ -201,12 +205,24 @@ def render_progress(
     hold_w_ratio: float = 0.78,
     note_w_ratio: float = 0.92,
     col_gap: int = 12,
+    output_width: Optional[int] = 750,
+    output_height: Optional[int] = 783,
 ) -> Image.Image:
     """Draw the most recent `view_seconds` of the chart generated so far, split into columns.
 
     Reading order is left to right; inside each column older notes are at the bottom and newer
     ones on top (like notes falling toward a judgment line). Only generated notes are drawn.
+
+    If `output_width` and `output_height` are both given, the layout (lane width and px/s) is
+    computed to fill exactly that size, so nothing is resized afterwards and text stays crisp and
+    undistorted; `lane_w` and `px_per_s` are then ignored. Pass None for both to use `lane_w` and
+    `px_per_s` directly and get whatever size results.
     """
+    if output_width and output_height:
+        col_w = (output_width - col_gap * (columns - 1)) // columns
+        lane_w = max(8, (col_w - AXIS_W - COL_PAD) // 4)
+        px_per_s = (output_height - HEAD_H - 10) / (view_seconds / columns)
+
     actions = list(actions)
     front_ms = (first_frame + len(actions)) * FRAME_MS
     notes = parse_notes(actions, first_frame)
@@ -225,13 +241,15 @@ def render_progress(
         for i in range(columns)
     ]
 
-    head_h = 58
-    W = sum(c.width for c in cols) + col_gap * (columns - 1)
-    H = head_h + cols[0].height + 10
+    content_w = sum(c.width for c in cols) + col_gap * (columns - 1)
+    content_h = HEAD_H + cols[0].height + 10
+    W = output_width if output_width and output_height else content_w
+    H = output_height if output_width and output_height else content_h
+
     out = Image.new("RGB", (W, H), (12, 13, 20))
-    x = 0
+    x = (W - content_w) // 2  # centre the columns if rounding left a few spare pixels
     for c in cols:
-        out.paste(c, (x, head_h))
+        out.paste(c, (x, HEAD_H))
         x += c.width + col_gap
 
     d = ImageDraw.Draw(out)
